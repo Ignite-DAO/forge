@@ -41,10 +41,7 @@ export default function CreateTokenPage() {
       .min(1, "Required")
       .max(11, "Max 11 characters")
       .regex(/^[A-Za-z0-9]+$/, "Letters and numbers only"),
-    decimals: z
-      .number({ invalid_type_error: "Must be a number" })
-      .min(0, "Min 0")
-      .max(18, "Max 18"),
+    decimals: z.coerce.number().min(0, "Min 0").max(18, "Max 18"),
     supply: z
       .string()
       .min(1, "Required")
@@ -54,7 +51,8 @@ export default function CreateTokenPage() {
   type FormValues = z.infer<typeof schema>;
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(schema),
+    // Cast to align with zodResolver + z.coerce typing
+    resolver: zodResolver(schema) as any,
     mode: "onChange",
     defaultValues: { name: "", symbol: "", decimals: 18, supply: "" },
   });
@@ -102,7 +100,7 @@ export default function CreateTokenPage() {
         supply,
         address,
       ],
-      value: (fee as bigint | undefined) ?? 0n,
+      value: (fee as bigint | undefined) ?? BigInt(0),
     });
     toast("Transaction submitted", {
       description: "Confirm in your wallet and wait for confirmations.",

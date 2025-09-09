@@ -40,12 +40,12 @@ export function useTokenCreations(fromBlock?: bigint) {
             { name: "supply", type: "uint256", indexed: false },
           ],
         } as any,
-        fromBlock: fromBlock ?? 0n,
+        fromBlock: fromBlock ?? BigInt(0),
         toBlock: "latest",
       });
 
       return logs.map((l) => {
-        const args = l.args as unknown as {
+        const args = (l as any).args as {
           token: `0x${string}`;
           creator: `0x${string}`;
           name: string;
@@ -60,8 +60,8 @@ export function useTokenCreations(fromBlock?: bigint) {
           symbol: args.symbol,
           decimals: Number(args.decimals),
           supply: BigInt(args.supply),
-          txHash: l.transactionHash!,
-          blockNumber: l.blockNumber!,
+          txHash: (l as any).transactionHash!,
+          blockNumber: (l as any).blockNumber!,
         } satisfies TokenCreated;
       });
     },

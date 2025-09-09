@@ -97,7 +97,7 @@ export default function AirdropPage() {
     }
   }, [rows, decimals]);
 
-  const total = useMemo(() => amounts.reduce((a, b) => a + b, 0n), [amounts]);
+  const total = useMemo(() => amounts.reduce((a, b) => a + b, BigInt(0)), [amounts]);
 
   const { data: allowance } = useReadContract({
     abi: erc20Abi,
@@ -257,14 +257,14 @@ export default function AirdropPage() {
             <Button
               type="button"
               variant="outline"
-              disabled={!ready || (allowance ?? 0n) >= total || isPending}
+              disabled={!ready || (allowance ?? BigInt(0)) >= total || isPending}
               onClick={onApprove}
             >
               {isPending ? "Confirming…" : "Approve"}
             </Button>
             <Button
               type="button"
-              disabled={!ready || (allowance ?? 0n) < total || isPending}
+              disabled={!ready || (allowance ?? BigInt(0)) < total || isPending}
               onClick={onAirdrop}
             >
               {isPending ? "Confirm in wallet…" : "Run Airdrop"}
