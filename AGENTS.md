@@ -4,6 +4,7 @@ Tooling
 - Package manager/runtime: use `bun`. Do not introduce npm/yarn/pnpm lockfiles; keep `bun.lock` as the single source of truth.
 - Scripts: `bun run dev` (Turbopack), `bun run build` (Turbopack), `bun run start`.
 - Install deps: `bun add <pkg>`; dev deps: `bun add -D <pkg>`; one-off CLIs: `bunx <bin>`.
+- shadcn/ui: add components using `bunx --bun shadcn@latest` (do not use `npx`). Place generated files under `src/components/` following shadcn’s structure.
 - Lint/format: `bun run lint` and `bun run format` (Biome). Do not change Biome config unless necessary.
 
 Framework (Next.js App Router)

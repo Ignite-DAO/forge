@@ -69,6 +69,7 @@ This plan captures the agreed scope for the initial Forge release: a clean front
 - Deliverables (verifiable)
   - App boots locally: `pnpm dev` or `npm run dev` showing frontpage
   - RainbowKit connect modal works on both testnet/mainnet chains (switching allowed)
+  - Custom wallet button implemented via `ConnectButton.Custom` and styled with shadcn `Button`
   - shadcn components render with Tailwind v4 (button, input, card demo)
 
 ## 4) Wallet & Chain Integration
@@ -140,7 +141,10 @@ This plan captures the agreed scope for the initial Forge release: a clean front
 
 - Content
   - Brand: Forge (useforge.xyz); clean, minimal hero; primary CTA “Create Token”; secondary CTA “Run Airdrop”
-  - Sections: How it works, Fees (flat, configurable, default 0), Supported Chains (Zilliqa EVM), Security (OZ, Sourcify), FAQ
+- Sections: How it works, Fees (flat, configurable, default 0), Supported Chains (Zilliqa EVM), Security (OZ, Sourcify), FAQ
+  - Added ad‑marketing explainer under hero (performance, attribution, audience→ownership)
+  - Added features/roadmap list (liquidity locks; launch formats: full, fair, presale; ElizaOS agents)
+  - Added Torch Wallet section with external link (torchwallet.io)
   - Inline widget to create a token (compact version of the full form)
 
 - Deliverables (verifiable)

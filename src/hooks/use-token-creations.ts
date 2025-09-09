@@ -1,0 +1,77 @@
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import { useChainId, usePublicClient } from "wagmi";
+import { getFactoryAddress, abis } from "@/lib/contracts";
+import { formatUnits } from "viem";
+
+type TokenCreated = {
+  token: `0x${string}`;
+  creator: `0x${string}`;
+  name: string;
+  symbol: string;
+  decimals: number;
+  supply: bigint;
+  txHash: `0x${string}`;
+  blockNumber: bigint;
+};
+
+export function useTokenCreations(fromBlock?: bigint) {
+  const chainId = useChainId();
+  const client = usePublicClient();
+  const address = getFactoryAddress(chainId);
+
+  return useQuery({
+    queryKey: ["token-creations", chainId, address, fromBlock?.toString()],
+    enabled: Boolean(client && address),
+    queryFn: async (): Promise<TokenCreated[]> => {
+      if (!client || !address) return [];
+      const logs = await client.getLogs({
+        address,
+        event: {
+          type: "event",
+          name: "TokenCreated",
+          inputs: [
+            { name: "token", type: "address", indexed: false },
+            { name: "creator", type: "address", indexed: true },
+            { name: "name", type: "string", indexed: false },
+            { name: "symbol", type: "string", indexed: false },
+            { name: "decimals", type: "uint8", indexed: false },
+            { name: "supply", type: "uint256", indexed: false },
+          ],
+        } as any,
+        fromBlock: fromBlock ?? 0n,
+        toBlock: "latest",
+      });
+
+      return logs.map((l) => {
+        const args = l.args as unknown as {
+          token: `0x${string}`;
+          creator: `0x${string}`;
+          name: string;
+          symbol: string;
+          decimals: number;
+          supply: bigint;
+        };
+        return {
+          token: args.token,
+          creator: args.creator,
+          name: args.name,
+          symbol: args.symbol,
+          decimals: Number(args.decimals),
+          supply: BigInt(args.supply),
+          txHash: l.transactionHash!,
+          blockNumber: l.blockNumber!,
+        } satisfies TokenCreated;
+      });
+    },
+  });
+}
+
+export function formatSupply(supply: bigint, decimals: number) {
+  try {
+    return formatUnits(supply, decimals);
+  } catch {
+    return supply.toString();
+  }
+}
