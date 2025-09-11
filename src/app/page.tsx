@@ -30,11 +30,10 @@ export default function Home() {
       <section className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-primary/10 via-background to-background p-10 sm:p-16">
         <div className="relative z-10 max-w-3xl">
           <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight">
-            Launch a token. Reward your community.
+            Launch in clicks. Grow without limits.
           </h1>
           <p className="text-base text-muted-foreground mt-4">
-            Forge lets you create a token and send airdrops in a few clicks. No
-            code. No spreadsheets. Just fast, secure distribution.
+            Airdrops, launches and liquidity. All instant. All on chain.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Button asChild size="lg">
@@ -42,7 +41,7 @@ export default function Home() {
                 href="/create-token"
                 className="inline-flex items-center gap-1.5"
               >
-                Create Token
+                Launch Token
                 <Rocket className="size-4" />
               </Link>
             </Button>
@@ -51,7 +50,7 @@ export default function Home() {
                 href="/airdrop"
                 className="inline-flex items-center gap-1.5"
               >
-                Run Airdrop
+                Start Airdrop
                 <Gift className="size-4" />
               </Link>
             </Button>
@@ -63,9 +62,7 @@ export default function Home() {
 
       {/* Quick CTA row */}
       <section className="text-center">
-        <p className="text-sm text-muted-foreground">
-          Build on Zilliqa EVM. Transparent and fast.
-        </p>
+        <p className="text-sm text-muted-foreground">Your project begins here.</p>
       </section>
 
       {/* Launch formats (preview) */}
@@ -81,8 +78,7 @@ export default function Home() {
             </Badge>
           </h2>
           <p className="text-base text-muted-foreground mt-3">
-            Choose the path that fits your community and goals. Configure how
-            you go live, including optional liquidity locks.
+            Choose the path that fits your community and goals. Configure how you go live, including optional liquidity locks.
           </p>
         </div>
         <div className="mt-8 grid gap-6 sm:grid-cols-3">
@@ -94,11 +90,10 @@ export default function Home() {
               <div className="text-base font-medium">Full launch</div>
             </div>
             <p className="text-sm text-muted-foreground mt-2">
-              Protocol‑provided liquidity before bonding to a DEX for smoother
-              price discovery.
+              Kickstart with built-in liquidity and seamless DEX integration for stronger price discovery.
             </p>
             <Badge className="mt-3" variant="outline">
-              Coming soon
+              Launching soon
             </Badge>
           </div>
           <div className="rounded-xl border border-border p-5">
@@ -109,11 +104,10 @@ export default function Home() {
               <div className="text-base font-medium">Fair launch</div>
             </div>
             <p className="text-sm text-muted-foreground mt-2">
-              Open participation with optional liquidity lockups to reinforce
-              trust.
+              Open to everyone, with optional liquidity locks that build instant community trust.
             </p>
             <Badge className="mt-3" variant="outline">
-              Coming soon
+              Launching soon
             </Badge>
           </div>
           <div className="rounded-xl border border-border p-5">
@@ -124,11 +118,10 @@ export default function Home() {
               <div className="text-base font-medium">Presale</div>
             </div>
             <p className="text-sm text-muted-foreground mt-2">
-              Allocate early with optional liquidity lockups ahead of wider
-              launch.
+              Give early supporters exclusive access before the full launch goes live.
             </p>
             <Badge className="mt-3" variant="outline">
-              Coming soon
+              Launching soon
             </Badge>
           </div>
         </div>
