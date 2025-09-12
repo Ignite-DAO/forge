@@ -199,6 +199,18 @@ This plan captures the agreed scope for the initial Forge release: a clean front
 - IPFS pinning automation for icons/tokenlist
 - Indexing of created tokens and airdrops for on‑site discovery
 
+## 14) Deployment: Cloudflare Workers (prep)
+
+- Add Wrangler config (`wrangler.toml`) targeting OpenNext output.
+- Package scripts:
+  - `cf:build` → `npx open-next@latest build --platform cloudflare`
+  - `cf:dev` → `npx wrangler dev`
+  - `cf:deploy` → `npx wrangler deploy`
+- Dev notes:
+  - Install dev deps: `npm i -D open-next @opennextjs/cloudflare wrangler`
+  - Build sequence: `npm run build` (Next) then `npm run cf:build` (OpenNext)
+  - Update `wrangler.toml` `main` path if OpenNext output differs.
+
 ## File Map to Create During Implementation
 
 - contracts/
