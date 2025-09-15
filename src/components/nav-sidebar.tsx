@@ -57,9 +57,15 @@ export function SidebarLayout({ children }: { children: React.ReactNode }) {
       <UiSidebar variant="inset" collapsible="icon">
         <SidebarHeader>
           <div className="h-10 flex items-center px-2">
-            <span className="text-sm font-semibold tracking-tight select-none">
-              Forge
-            </span>
+            <Link href="/" className="flex items-center gap-2 select-none">
+              <img
+                src="/forge_logo_text.svg"
+                alt="Forge"
+                className="h-4 brightness-0 dark:brightness-100"
+                height={16}
+                width={96}
+              />
+            </Link>
           </div>
         </SidebarHeader>
         <SidebarContent className="no-scrollbar">

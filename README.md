@@ -1,45 +1,28 @@
 # Forge
-Welcome to Forge, by Torch Wallet.
 
-## Getting Started
+Forge is a simple, secure way to create fixed‑supply ERC‑20 tokens and run airdrops on Zilliqa EVM (Mainnet 32769, Testnet 33101). Frontend is Next.js 15 with Tailwind v4 + shadcn/ui and RainbowKit/wagmi.
 
-First, run the development server:
+## Frontend
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Stack: Next.js (App Router), Tailwind v4, shadcn/ui, RainbowKit + wagmi + viem
+- Routes:
+  - `/` landing with CTAs
+  - `/create-token` token factory flow (reads fee and sends it if set)
+  - `/airdrop` airdrop tool (reads fee and sends it if set)
+  - `/tokenlist` placeholder for token list
+- Commands:
+  - Dev: `npm run dev` then open `http://localhost:3000`
+  - Build: `npm run build` | Start: `npm run start`
+  - Lint/format (Biome): `npm run lint` | `npm run format`
+- Wallet: RainbowKit connect with custom button; chain switching for 32769/33101
+- Styling: Tailwind v4 via `src/app/globals.css`; shadcn components under `src/components/`
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Environment (frontend)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Wallet Integration
-
-- RainbowKit + wagmi powered wallet connect.
-- Custom wallet button built with RainbowKit’s `ConnectButton.Custom` and styled using the project’s shadcn `Button` for a consistent topbar look.
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Set per‑chain addresses (exposed to the client):
+  - `NEXT_PUBLIC_FACTORY_ADDRESS_32769` and `NEXT_PUBLIC_FACTORY_ADDRESS_33101`
+  - `NEXT_PUBLIC_AIRDROPPER_ADDRESS_32769` and `NEXT_PUBLIC_AIRDROPPER_ADDRESS_33101`
+- Restart the dev server after changing env.
 
 ## Cloudflare Workers (Setup)
 
@@ -47,10 +30,9 @@ This repo is prepared to deploy on Cloudflare Workers using OpenNext.
 
 Steps (npm):
 
-- Install tooling (dev deps): `npm i -D open-next @opennextjs/cloudflare wrangler`
 - Build Next.js: `npm run build`
 - Build Workers bundle: `npm run cf:build` (outputs `.open-next`)
-- Local dev: `npm run cf:dev`
+- Local preview: `npm run preview`
 - Deploy: `npm run cf:deploy`
 
 Notes:
@@ -86,6 +68,19 @@ Airdropper admin scripts
 - Set fee (sig): `forge script script/AirdropperSetFee.s.sol --sig "run(address,uint256)" <airdropper> <feeWei> --rpc-url <RPC> --private-key <PK> --broadcast`
 - Set treasury (env): `AIRDROPPER_ADDRESS=<addr> TREASURY_ADDRESS=<addr> forge script script/AirdropperSetTreasury.s.sol --rpc-url <RPC> --private-key <PK> --broadcast`
 - Set treasury (sig): `forge script script/AirdropperSetTreasury.s.sol --sig "run(address,address)" <airdropper> <treasury> --rpc-url <RPC> --private-key <PK> --broadcast`
+
+Verification (Sourcify)
+
+- Using Foundry integration with Sourcify:
+  - Build first: `cd contracts && forge build`
+  - One-liners:
+    - Factory: `forge verify-contract --verifier sourcify --chain-id <ID> <FACTORY_ADDR> src/ForgeTokenFactory.sol:ForgeTokenFactory`
+    - Airdropper: `forge verify-contract --verifier sourcify --chain-id <ID> <AIRDROPPER_ADDR> src/ForgeAirdropper.sol:ForgeAirdropper`
+- Helper script:
+  - `cd contracts`
+  - `CHAIN_ID=<ID> FACTORY_ADDRESS=<0x...> ./scripts/verify-sourcify.sh`
+  - `CHAIN_ID=<ID> AIRDROPPER_ADDRESS=<0x...> ./scripts/verify-sourcify.sh`
+  - Optional: add `RPC_URL=<https rpc>` if needed for the target network.
 
 Git ignore notes
 

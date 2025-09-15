@@ -1,11 +1,11 @@
 Project-scoped guidance for agents working in this repository. Keep changes minimal, focused, and aligned with the project’s tooling and conventions.
 
 Tooling
-- Package manager/runtime: use `bun`. Do not introduce npm/yarn/pnpm lockfiles; keep `bun.lock` as the single source of truth.
-- Scripts: `bun run dev` (Turbopack), `bun run build` (Turbopack), `bun run start`.
-- Install deps: `bun add <pkg>`; dev deps: `bun add -D <pkg>`; one-off CLIs: `bunx <bin>`.
-- shadcn/ui: add components using `bunx --bun shadcn@latest` (do not use `npx`). Place generated files under `src/components/` following shadcn’s structure.
-- Lint/format: `bun run lint` and `bun run format` (Biome). Do not change Biome config unless necessary.
+- Package manager/runtime: use `npm`. Do not introduce bun/pnpm/yarn lockfiles; keep `package-lock.json` as the single source of truth.
+- Scripts: `npm run dev` (Turbopack), `npm run build` (Turbopack), `npm run start`.
+- Install deps: `npm i <pkg>`; dev deps: `npm i -D <pkg>`; one-off CLIs: `npx <bin>`.
+- shadcn/ui: add components using `npx shadcn@latest`. Place generated files under `src/components/` following shadcn’s structure.
+- Lint/format: `npm run lint` and `npm run format` (Biome). Do not change Biome config unless necessary.
 
 Framework (Next.js App Router)
 - Source lives under `src/app`. Prefer Server Components by default; add `"use client"` only when required.
@@ -24,8 +24,8 @@ TypeScript & Quality
 - Biome is the formatter/linter. Run locally before proposing changes; keep rule exceptions minimal.
 
 Running & Verifying
-- Dev: `bun run dev` and open `http://localhost:3000`.
-- Prod build: `bun run build` then `bun run start`.
+- Dev: `npm run dev` and open `http://localhost:3000`.
+- Prod build: `npm run build` then `npm run start`.
 - Static assets live in `public/`; global styles in `src/app/globals.css`.
 
 Conventions

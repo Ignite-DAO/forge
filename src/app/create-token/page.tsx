@@ -1,8 +1,9 @@
 "use client";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   useAccount,
   useChainId,
+  usePublicClient,
   useReadContract,
   useWaitForTransactionReceipt,
   useWriteContract,
@@ -13,6 +14,7 @@ import { addressUrl, txUrl } from "@/lib/explorer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -28,6 +30,9 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { nf, tryFormatUnits } from "@/lib/format";
+import { parseEventLogs } from "viem";
+import { CheckCircle2, Copy, ExternalLink, Wallet } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export default function CreateTokenPage() {
   const { address, isConnected } = useAccount();
@@ -69,26 +74,119 @@ export default function CreateTokenPage() {
   const { writeContract, data: hash, isPending } = useWriteContract();
   const { isLoading: isConfirming, isSuccess: isConfirmed } =
     useWaitForTransactionReceipt({ hash });
+  const publicClient = usePublicClient();
 
   const canSubmit = isConnected && !!factory && isValid;
 
+  const [created, setCreated] = useState<{
+    token: `0x${string}`;
+    name: string;
+    symbol: string;
+    decimals: number;
+    supply: bigint;
+    txHash: `0x${string}`;
+    creator: `0x${string}`;
+  } | null>(null);
+
   useEffect(() => {
-    if (isConfirmed && hash) {
+    async function decode() {
+      if (!isConfirmed || !hash || !publicClient) return;
+      try {
+        const r = await publicClient.getTransactionReceipt({ hash });
+        let found = false;
+        for (const log of r.logs) {
+          try {
+            const decoded = (await (async () => {
+              const { decodeEventLog } = await import("viem");
+              return decodeEventLog({
+                abi: abis.forgeTokenFactory as any,
+                data: log.data,
+                topics: log.topics as any,
+              }) as any;
+            })()) as any;
+            if (decoded?.eventName === "TokenCreated") {
+              const args = decoded.args as {
+                token: `0x${string}`;
+                creator: `0x${string}`;
+                name: string;
+                symbol: string;
+                decimals: number;
+                supply: bigint;
+              };
+              setCreated({
+                token: args.token,
+                name: args.name,
+                symbol: args.symbol,
+                decimals: Number(args.decimals),
+                supply: BigInt(args.supply),
+                txHash: hash!,
+                creator: args.creator,
+              });
+              found = true;
+              break;
+            }
+          } catch {
+            // ignore non-matching logs
+          }
+        }
+        if (!found && factory) {
+          // Fallback: query logs by block for the factory and match tx hash
+          const logs = await publicClient.getLogs({
+            address: factory,
+            event: {
+              type: "event",
+              name: "TokenCreated",
+              inputs: [
+                { name: "token", type: "address", indexed: true },
+                { name: "creator", type: "address", indexed: true },
+                { name: "name", type: "string", indexed: false },
+                { name: "symbol", type: "string", indexed: false },
+                { name: "decimals", type: "uint8", indexed: false },
+                { name: "supply", type: "uint256", indexed: false },
+              ],
+            } as any,
+            fromBlock: r.blockNumber,
+            toBlock: r.blockNumber,
+          });
+          const match = logs.find((l: any) => l.transactionHash === hash);
+          if (match) {
+            const args = (match as any).args as {
+              token: `0x${string}`;
+              creator: `0x${string}`;
+              name: string;
+              symbol: string;
+              decimals: number;
+              supply: bigint;
+            };
+            setCreated({
+              token: args.token,
+              name: args.name,
+              symbol: args.symbol,
+              decimals: Number(args.decimals),
+              supply: BigInt(args.supply),
+              txHash: hash!,
+              creator: args.creator,
+            });
+          }
+        }
+      } catch {
+        // ignore decode errors
+      }
       toast.success("Token created", {
         description: "Your token contract has been deployed.",
         action: {
           label: "View Tx",
-          onClick: () => {
-            window.open(txUrl(chainId, hash), "_blank");
-          },
+          onClick: () => window.open(txUrl(chainId, hash!), "_blank"),
         },
       });
     }
-  }, [isConfirmed, hash, chainId]);
+    void decode();
+  }, [isConfirmed, hash, chainId, publicClient]);
 
   const onSubmit = handleSubmit((values) => {
     if (!factory || !address) return;
     const supply = parseUnits(values.supply.replace(",", "."), values.decimals);
+    setCreated(null);
     writeContract({
       abi: abis.forgeTokenFactory,
       address: factory,
@@ -98,9 +196,8 @@ export default function CreateTokenPage() {
         values.symbol.trim().toUpperCase(),
         values.decimals,
         supply,
-        address,
       ],
-      value: (fee as bigint | undefined) ?? BigInt(0),
+      value: fee && (fee as bigint) > 0n ? (fee as bigint) : undefined,
     });
     toast("Transaction submitted", {
       description: "Confirm in your wallet and wait for confirmations.",
@@ -187,26 +284,7 @@ export default function CreateTokenPage() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <div>
-                <span>Network: </span>
-                <span className="font-medium">{chainId}</span>
-              </div>
-              <div>
-                <span>Factory: </span>
-                {factory ? (
-                  <a
-                    className="underline"
-                    href={addressUrl(chainId, factory)}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    {factory.slice(0, 6)}…{factory.slice(-4)}
-                  </a>
-                ) : (
-                  <span>not set</span>
-                )}
-              </div>
+            <div className="flex items-center justify-end text-xs text-muted-foreground">
               <div>
                 <span>Fee: </span>
                 <span>
@@ -218,7 +296,12 @@ export default function CreateTokenPage() {
             </div>
           </CardContent>
           <CardFooter className="flex gap-2">
-            <Button type="submit" disabled={!canSubmit || isPending}>
+            <Button
+              type="submit"
+              disabled={!canSubmit || isPending}
+              aria-busy={isPending}
+            >
+              {isPending && <Loader2 className="animate-spin" />}
               {isPending ? "Confirm in wallet…" : "Create Token"}
             </Button>
             {hash && (
@@ -235,13 +318,120 @@ export default function CreateTokenPage() {
               Waiting for confirmations…
             </p>
           )}
-          {isConfirmed && (
-            <p className="text-xs text-green-600 dark:text-green-400 px-6 pb-4">
-              Token created successfully.
-            </p>
-          )}
         </form>
       </Card>
+
+      {created && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Badge>
+                <CheckCircle2 className="size-3" /> Success
+              </Badge>
+              <CardTitle className="text-base">Token created</CardTitle>
+            </div>
+            <CardDescription>
+              Your token is live. Full supply has been minted to your wallet.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm">
+            <div className="grid sm:grid-cols-2 gap-2">
+              <div className="text-muted-foreground">Name</div>
+              <div className="font-medium">{created.name}</div>
+              <div className="text-muted-foreground">Symbol</div>
+              <div className="font-medium">{created.symbol}</div>
+              <div className="text-muted-foreground">Decimals</div>
+              <div className="font-medium">{created.decimals}</div>
+              <div className="text-muted-foreground">Total Supply</div>
+              <div className="font-medium">
+                {tryFormatUnits(created.supply, created.decimals)}
+              </div>
+              <div className="text-muted-foreground">Address</div>
+              <div className="font-medium flex items-center gap-2">
+                <a
+                  href={addressUrl(chainId, created.token)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline font-mono"
+                >
+                  {created.token.slice(0, 6)}…{created.token.slice(-4)}
+                </a>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    navigator.clipboard.writeText(created.token).then(() =>
+                      toast.success("Address copied", {
+                        description: created.token,
+                      })
+                    );
+                  }}
+                >
+                  <Copy className="size-4" /> Copy
+                </Button>
+              </div>
+              <div className="text-muted-foreground">Transaction</div>
+              <div className="font-medium">
+                <a
+                  href={txUrl(chainId, created.txHash)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline"
+                >
+                  {created.txHash.slice(0, 8)}…
+                </a>
+              </div>
+              <div className="text-muted-foreground">Minted To</div>
+              <div className="font-medium flex items-center gap-2">
+                <a
+                  href={addressUrl(chainId, created.creator)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline font-mono"
+                >
+                  {created.creator.slice(0, 6)}…{created.creator.slice(-4)}
+                </a>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    navigator.clipboard.writeText(created.creator).then(() =>
+                      toast.success("Address copied", {
+                        description: created.creator,
+                      })
+                    );
+                  }}
+                >
+                  <Copy className="size-4" /> Copy
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2 pt-2">
+              <Button asChild variant="outline">
+                <a
+                  href={addressUrl(chainId, created.token)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <ExternalLink className="size-4" /> View on Explorer
+                </a>
+              </Button>
+              <Button asChild variant="outline">
+                <a
+                  href={txUrl(chainId, created.txHash)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <ExternalLink className="size-4" /> View Transaction
+                </a>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

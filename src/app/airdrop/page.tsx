@@ -35,7 +35,8 @@ import { PageHeader } from "@/components/page-header";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { nf } from "@/lib/format";
+import { nf, tryFormatUnits } from "@/lib/format";
+import { Loader2 } from "lucide-react";
 
 type Row = { address: string; amount: string };
 
@@ -99,6 +100,14 @@ export default function AirdropPage() {
 
   const total = useMemo(() => amounts.reduce((a, b) => a + b, BigInt(0)), [amounts]);
 
+  // Airdropper fee (if any)
+  const { data: dropFee } = useReadContract({
+    abi: abis.forgeAirdropper,
+    address: airdropper ?? undefined,
+    functionName: "fee",
+    query: { enabled: Boolean(airdropper) },
+  });
+
   const { data: allowance } = useReadContract({
     abi: erc20Abi,
     address: token as `0x${string}` | undefined,
@@ -108,6 +117,7 @@ export default function AirdropPage() {
   });
 
   const { writeContract, data: hash, isPending } = useWriteContract();
+  const [action, setAction] = useState<"approve" | "airdrop" | null>(null);
   const { isLoading: isConfirming, isSuccess: isConfirmed } =
     useWaitForTransactionReceipt({ hash });
 
@@ -125,6 +135,7 @@ export default function AirdropPage() {
 
   function onApprove() {
     if (!ready || !airdropper) return;
+    setAction("approve");
     writeContract({
       abi: erc20Abi,
       address: token as `0x${string}`,
@@ -135,11 +146,14 @@ export default function AirdropPage() {
 
   function onAirdrop() {
     if (!ready || !airdropper) return;
+    setAction("airdrop");
     writeContract({
       abi: abis.forgeAirdropper,
       address: airdropper,
       functionName: "airdrop",
       args: [token as `0x${string}`, recipients as `0x${string}`[], amounts],
+      value:
+        dropFee && (dropFee as bigint) > 0n ? (dropFee as bigint) : undefined,
     });
     toast("Airdrop submitted", {
       description: "Confirm in wallet and wait for confirmations.",
@@ -210,6 +224,12 @@ export default function AirdropPage() {
             <div>Rows: {rows.length}</div>
             <div>Total: {nf().format(Number(total))} wei</div>
             <div>Allowance: {allowance ? allowance.toString() : "—"}</div>
+            <div>
+              Fee:{" "}
+              {dropFee && dropFee > 0n
+                ? `${nf().format(Number(tryFormatUnits(dropFee, 18)))} ZIL`
+                : "—"}
+            </div>
             {invalidRows.length > 0 && (
               <div className="text-destructive">
                 Invalid rows: {invalidRows.length}
@@ -260,14 +280,20 @@ export default function AirdropPage() {
               disabled={!ready || (allowance ?? BigInt(0)) >= total || isPending}
               onClick={onApprove}
             >
-              {isPending ? "Confirming…" : "Approve"}
+              {isPending && action === "approve" && (
+                <Loader2 className="animate-spin" />
+              )}
+              {isPending && action === "approve" ? "Confirm in wallet…" : "Approve"}
             </Button>
             <Button
               type="button"
               disabled={!ready || (allowance ?? BigInt(0)) < total || isPending}
               onClick={onAirdrop}
             >
-              {isPending ? "Confirm in wallet…" : "Run Airdrop"}
+              {isPending && action === "airdrop" && (
+                <Loader2 className="animate-spin" />
+              )}
+              {isPending && action === "airdrop" ? "Confirm in wallet…" : "Run Airdrop"}
             </Button>
           </div>
 

@@ -1,31 +1,25 @@
 import { forgeTokenFactoryAbi } from "@/abi/forgeTokenFactory";
 import { forgeAirdropperAbi } from "@/abi/forgeAirdropper";
 
-export const FACTORY_ENV_MAINNET = "NEXT_PUBLIC_FACTORY_ADDRESS_32769" as const;
-export const FACTORY_ENV_TESTNET = "NEXT_PUBLIC_FACTORY_ADDRESS_33101" as const;
-export const AIRDROPPER_ENV_MAINNET =
-  "NEXT_PUBLIC_AIRDROPPER_ADDRESS_32769" as const;
-export const AIRDROPPER_ENV_TESTNET =
-  "NEXT_PUBLIC_AIRDROPPER_ADDRESS_33101" as const;
+// Note: Use direct env references so Next.js replaces them at build time for the client bundle.
+const FACTORY_32769 = process.env
+  .NEXT_PUBLIC_FACTORY_ADDRESS_32769 as `0x${string}` | undefined;
+const FACTORY_33101 = process.env
+  .NEXT_PUBLIC_FACTORY_ADDRESS_33101 as `0x${string}` | undefined;
+const AIRDROPPER_32769 = process.env
+  .NEXT_PUBLIC_AIRDROPPER_ADDRESS_32769 as `0x${string}` | undefined;
+const AIRDROPPER_33101 = process.env
+  .NEXT_PUBLIC_AIRDROPPER_ADDRESS_33101 as `0x${string}` | undefined;
 
 export function getFactoryAddress(chainId: number): `0x${string}` | null {
-  const byChain: Record<number, string | undefined> = {
-    32769: process.env[FACTORY_ENV_MAINNET],
-    33101: process.env[FACTORY_ENV_TESTNET],
-  };
-  const addr = byChain[chainId];
-  if (!addr) return null;
-  return addr as `0x${string}`;
+  const addr = chainId === 32769 ? FACTORY_32769 : chainId === 33101 ? FACTORY_33101 : undefined;
+  return (addr as `0x${string}` | undefined) ?? null;
 }
 
 export function getAirdropperAddress(chainId: number): `0x${string}` | null {
-  const byChain: Record<number, string | undefined> = {
-    32769: process.env[AIRDROPPER_ENV_MAINNET],
-    33101: process.env[AIRDROPPER_ENV_TESTNET],
-  };
-  const addr = byChain[chainId];
-  if (!addr) return null;
-  return addr as `0x${string}`;
+  const addr =
+    chainId === 32769 ? AIRDROPPER_32769 : chainId === 33101 ? AIRDROPPER_33101 : undefined;
+  return (addr as `0x${string}` | undefined) ?? null;
 }
 
 export const abis = {

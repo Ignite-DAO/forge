@@ -10,7 +10,15 @@ export function Topbar({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
         <span className="sm:hidden">
           <SidebarTrigger />
         </span>
-        <span className="text-sm text-foreground/80">Forge</span>
+        <a href="/" className="flex items-center gap-2 select-none sm:hidden">
+          <img
+            src="/forge_logo.svg"
+            alt="Forge"
+            className="h-6 w-6 brightness-0 dark:brightness-100"
+            height={24}
+            width={24}
+          />
+        </a>
       </div>
       <div className="flex items-center gap-1.5">
         <ThemeToggle />
