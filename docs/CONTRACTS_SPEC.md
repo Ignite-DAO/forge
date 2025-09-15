@@ -5,13 +5,13 @@ Scope: Zilliqa EVM Mainnet (32769) and Testnet (33101). Solidity contracts enabl
 ## Overview
 
 - Compiler: Solidity ^0.8.24 (exact version to lock during implementation)
-- Libraries: OpenZeppelin (ERC20, Ownable, IERC20)
+- Libraries: OpenZeppelin (ERC20, Ownable2Step, IERC20, SafeERC20, ReentrancyGuard, Address)
 - Ownership/Admin: Single owner (EOA or multisig) controls factory parameters
 - Verification: Sourcify (metadata + sources)
 
 ## Contracts
 
-### ForgeStandardERC20
+### ForgeStandardERC20 (OpenZeppelin-based)
 
 - Purpose: Simple fixed‑supply ERC‑20 minted at deployment to `initialOwner`.
 - Inheritance: `ERC20`
@@ -26,21 +26,21 @@ Scope: Zilliqa EVM Mainnet (32769) and Testnet (33101). Solidity contracts enabl
 - Events: standard ERC‑20 `Transfer`/`Approval` only.
 - Notes: No mint/burn after deployment.
 
-### ForgeTokenFactory (Ownable)
+### ForgeTokenFactory (Ownable2Step + ReentrancyGuard)
 
 - Purpose: Deploys new `ForgeStandardERC20` tokens. Optional flat fee in native ZIL sent to a treasury.
-- Inheritance: `Ownable`
+- Inheritance: `Ownable2Step`, `ReentrancyGuard`
 - State:
   - `uint256 public fee;` — flat fee in wei (native ZIL)
   - `address public treasury;` — recipient of fees (defaults to `owner`)
 - Constructor:
-  - `constructor(uint256 initialFee)`
-  - Owner defaults to deployer (`msg.sender` via Ownable). Sets `fee = initialFee` and `treasury = owner`.
+  - `constructor()`
+  - Owner defaults to deployer (`msg.sender` via Ownable). Sets `fee = 0` and `treasury = owner`.
 - Functions:
   - `function createToken(string calldata name, string calldata symbol, uint8 decimals, uint256 supply) external payable returns (address token)`
     - Requirements: if `fee > 0`, `msg.value >= fee`; reverts `InsufficientFee()` otherwise.
     - Deploys `ForgeStandardERC20(name, symbol, decimals, supply, msg.sender)`.
-    - If `fee > 0` and `treasury != address(0)`, forwards `fee` to `treasury` and refunds any excess to `msg.sender`.
+    - If `fee > 0` and `treasury != address(0)`, forwards `fee` to `treasury` (via `Address.sendValue`) and refunds any excess to `msg.sender`.
     - Emits `TokenCreated(token, msg.sender, name, symbol, decimals, supply)`.
   - `function setFee(uint256 newFee) external onlyOwner` — emits `FeeUpdated(oldFee, newFee)`.
   - `function setTreasury(address newTreasury) external onlyOwner` — emits `TreasuryUpdated(oldTreasury, newTreasury)`.
@@ -53,23 +53,35 @@ Scope: Zilliqa EVM Mainnet (32769) and Testnet (33101). Solidity contracts enabl
   - `error InsufficientFee(uint256 required, uint256 provided);`
   - `error TransferFailed();` (if forwarding ETH/ZIL fails)
 - Security:
-  - No user funds custody; fee is flat and immediately forwarded.
-  - Deterministic deployment not required; standard create is sufficient.
-  - Reentrancy: `createToken` doesn’t call into untrusted contracts before state changes; still acceptable to add `nonReentrant` as defense‑in‑depth.
-  - Input bounds: enforce reasonable `decimals <= 18` and `supply > 0` client‑side; solidity may optionally validate.
+  - Uses `Ownable2Step` for safer ownership transfers and `ReentrancyGuard` on payable functions.
+  - Forwards ETH via `Address.sendValue` (reverts on failure), then refunds any excess.
+  - Validates `decimals <= 18` and `supply > 0` on-chain.
 
-### ForgeAirdropper
+### ForgeAirdropper (SafeERC20 + Fee)
 
-- Purpose: Batch transfer ERC‑20 tokens from sender to multiple recipients using allowance.
+- Purpose: Batch transfer ERC‑20 tokens from sender to multiple recipients using allowance; supports optional flat fee in native token forwarded to a treasury.
+- State:
+  - `uint256 public fee;` — flat fee in wei (native ZIL)
+  - `address public treasury;` — fee recipient (defaults to `owner`)
+- Admin (Ownable2Step):
+  - `setFee(uint256)` — emits `FeeUpdated(oldFee,newFee)`
+  - `setTreasury(address)` — emits `TreasuryUpdated(old,new)`
+  - `withdraw()` — sweeps any stuck ETH to owner (defensive)
 - Functions:
-  - `function airdrop(address token, address[] calldata recipients, uint256[] calldata amounts) external`
-    - Requirements: `recipients.length == amounts.length`.
-    - Computes total and loops: `IERC20(token).transferFrom(msg.sender, recipients[i], amounts[i])`.
+  - `function airdrop(address token, address[] calldata recipients, uint256[] calldata amounts) external payable`
+    - Requirements: `recipients.length == amounts.length`; if `fee>0`, `msg.value >= fee` else reverts `InsufficientFee(required,provided)`.
+    - Computes total and loops using `SafeERC20.safeTransferFrom` in a non-reentrant context.
+    - Forwards `fee` to `treasury` (if non-zero) and refunds any excess to `msg.sender`.
     - Emits `Airdropped(token, msg.sender, recipients.length, total)`.
+  - `function airdropEqual(address token, address[] calldata recipients, uint256 amountEach) external payable`
+    - Same fee behavior; transfers equal amounts to all recipients.
 - Events:
   - `event Airdropped(address indexed token, address indexed sender, uint256 count, uint256 total);`
+  - `event FeeUpdated(uint256 oldFee, uint256 newFee);`
+  - `event TreasuryUpdated(address indexed oldTreasury, address indexed newTreasury);`
 - Errors:
   - `error LengthMismatch();`
+  - `error InsufficientFee(uint256 required, uint256 provided);`
 - Notes:
   - Gas limits: frontend should cap N per call to avoid out‑of‑gas based on estimated costs.
   - Approvals: UI performs `approve` for the total prior to invoking `airdrop`.
@@ -93,11 +105,12 @@ ForgeStandardERC20
 
 ForgeTokenFactory
 
-- constructor(uint256)
+- constructor()
 - function fee() view returns (uint256)
 - function treasury() view returns (address)
 - function owner() view returns (address)
 - function createToken(string,string,uint8,uint256) payable returns (address)
+- function createToken(string,string,uint256) payable returns (address) // defaults decimals to 18
 - function setFee(uint256)
 - function setTreasury(address)
 - function withdraw()
@@ -108,13 +121,21 @@ ForgeTokenFactory
 
 ForgeAirdropper
 
-- function airdrop(address,address[],uint256[])
+- function fee() view returns (uint256)
+- function treasury() view returns (address)
+- function owner() view returns (address)
+- function setFee(uint256)
+- function setTreasury(address)
+- function withdraw()
+- function airdrop(address,address[],uint256[]) payable
+- function airdropEqual(address,address[],uint256) payable
 - event Airdropped(address indexed,address indexed,uint256,uint256)
+- event FeeUpdated(uint256,uint256)
+- event TreasuryUpdated(address indexed,address indexed)
 
 ## Deployment & Parameters
 
-- Factory constructor params at deploy time:
-  - `initialFee`: `0` for initial rollout
+- Factory has no constructor params; defaults to `fee = 0`.
 - Defaults:
   - `owner` = deployer address
   - `treasury` = `owner` (can be updated later)
@@ -137,4 +158,4 @@ ForgeAirdropper
 
 - Factory: fee logic (`fee=0`, `fee>0`, excess refund), events emission, admin updates.
 - Token: decimals override correctness; total supply minted to creator.
-- Airdropper: length mismatch revert; success path; insufficient allowance revert from token.
+- Airdropper: length mismatch revert; success path; insufficient allowance; fee logic (insufficient fee, forward + refund, withdraw when treasury zero).

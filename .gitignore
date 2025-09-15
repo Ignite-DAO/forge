@@ -18,6 +18,12 @@
 /out/
 .open-next/
 
+# foundry (contracts)
+/contracts/cache
+/contracts/out
+/contracts/broadcast
+/contracts/lib
+
 # production
 /build
 

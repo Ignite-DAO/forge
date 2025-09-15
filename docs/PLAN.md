@@ -19,6 +19,12 @@ This plan captures the agreed scope for the initial Forge release: a clean front
 
 ## 1) Smart Contracts (Factories + Implementations)
 
+Status update (OZ-based initial cut)
+
+- Implemented `ForgeTokenFactory` (Ownable2Step + ReentrancyGuard), `ForgeAirdropper` (SafeERC20) and `ForgeStandardERC20` using OpenZeppelin.
+- Factory constructor has no params; default `fee = 0`. Uses `Address.sendValue` for fee forwarding/refunds, and validates supply/decimals.
+- Foundry remapping added; install OZ via `forge install openzeppelin/openzeppelin-contracts` before build.
+
 - Contracts
   - ForgeTokenFactory
     - `createToken(name, symbol, decimals, supply)` payable; reverts if `msg.value < fee` when `fee > 0`
