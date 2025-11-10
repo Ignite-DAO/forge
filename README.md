@@ -119,3 +119,7 @@ Fair launch
   - `FairLaunchRouterConfig` pointing to PlunderSwap V2/V3 + Wrapped ZIL contracts
 - Configure it via the scripts above (`FairLaunchSetFee.s.sol`, `FairLaunchSetTreasury.s.sol`).
 - When creating a launch, deposit the total tokens required (`tokensForSale + liquidityPercent%`) and pay the flat ZIL creation fee (if configured). Contributors can raise in ZIL or USDC, and auto-listing will push liquidity to PlunderSwap V2 or V3 based on the launch config.
+
+## License
+
+Forge is distributed under the Business Source License 1.1 (BSL). You can use, modify, and run the code for non-commercial purposes today, including internal experimentation or research. On 2029-11-10 (four years from the current release), the code automatically reverts to the MIT License, at which point it becomes fully open source for any use case. For commercial licensing before that date, please contact the maintainers.
