@@ -191,15 +191,15 @@ export default function Home() {
 
             <div>
               <div className="flex items-center gap-2 text-base font-medium">
-                <Bot className="size-4 text-muted-foreground" />
-                ElizaOS agents
+                <MousePointerClick className="size-4 text-muted-foreground" />
+                Flexible launch formats
                 <Badge className="ml-2" variant="outline">
                   Coming soon
                 </Badge>
               </div>
               <p className="text-sm text-muted-foreground mt-1">
-                Deploy autonomous agents using ElizaOS, a leading on‑chain AI
-                framework, to automate growth and operations.
+                Expand beyond the basic token drop with full, fair, and presale
+                templates plus guardrails tuned for each path.
               </p>
             </div>
           </div>

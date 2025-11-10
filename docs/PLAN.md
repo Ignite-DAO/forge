@@ -149,7 +149,7 @@ Status update (OZ-based initial cut)
   - Brand: Forge (useforge.xyz); clean, minimal hero; primary CTA “Create Token”; secondary CTA “Run Airdrop”
 - Sections: How it works, Fees (flat, configurable, default 0), Supported Chains (Zilliqa EVM), Security (OZ, Sourcify), FAQ
   - Added ad‑marketing explainer under hero (performance, attribution, audience→ownership)
-  - Added features/roadmap list (liquidity locks; launch formats: full, fair, presale; ElizaOS agents)
+  - Added features/roadmap list (liquidity locks; launch formats: full, fair, presale)
   - Added Torch Wallet section with external link (torchwallet.io)
   - Inline widget to create a token (compact version of the full form)
 
