@@ -214,7 +214,7 @@ export default function FairLaunchPage() {
       endTime: defaultEnd,
       liquidityPercent: 80,
       autoListing: true,
-      routerKind: "V2",
+      routerKind: "V3",
       v3FeeTier: "2500",
       lockDuration: LOCK_OPTIONS[1]?.value ?? "0",
       whitelistEnabled: false,
@@ -478,29 +478,6 @@ const { register, watch, handleSubmit, setValue, formState, trigger, reset } = f
                 ))}
               </RadioGroup>
             </div>
-            <div className="space-y-3">
-              <Label>PlunderSwap V3 fee tier</Label>
-              <RadioGroup
-                value={v3FeeTier}
-                onValueChange={(value) => setValue("v3FeeTier", value as FormValues["v3FeeTier"])}
-                className="grid gap-2 sm:grid-cols-2"
-              >
-                {[
-                  { value: "100", label: "0.01% (100)", hint: "Ultra-low fee for blue-chip pairs." },
-                  { value: "500", label: "0.05% (500)", hint: "Low volatility or deep-liquidity pairs." },
-                  { value: "2500", label: "0.25% (2500)", hint: "Balanced option for most new launches." },
-                  { value: "10000", label: "1% (10000)", hint: "High volatility or thin-liquidity assets." },
-                ].map((tier) => (
-                  <RadioGroupItem key={tier.value} value={tier.value}>
-                    <div className="font-medium">{tier.label}</div>
-                    <p className="text-xs text-muted-foreground">{tier.hint}</p>
-                  </RadioGroupItem>
-                ))}
-              </RadioGroup>
-              <p className="text-xs text-muted-foreground">
-                Fee tier is only used when auto-listing via PlunderSwap V3 full-range pools.
-              </p>
-            </div>
           </div>
         );
       case 1:
@@ -593,6 +570,30 @@ const { register, watch, handleSubmit, setValue, formState, trigger, reset } = f
                   </SelectContent>
                 </Select>
               </div>
+              {autoListing && routerKindValue === "V3" && (
+                <div className="space-y-3 rounded-md border border-dashed border-primary/30 p-3">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    PlunderSwap V3 fee tier (full range)
+                  </p>
+                  <RadioGroup
+                    value={v3FeeTier}
+                    onValueChange={(value) => setValue("v3FeeTier", value as FormValues["v3FeeTier"])}
+                    className="grid gap-2 sm:grid-cols-2"
+                  >
+                    {[
+                      { value: "100", label: "0.01% (100)", hint: "Ultra-low fee for blue-chip pairs." },
+                      { value: "500", label: "0.05% (500)", hint: "Low volatility or deep-liquidity pairs." },
+                      { value: "2500", label: "0.25% (2500)", hint: "Balanced option for most new launches." },
+                      { value: "10000", label: "1% (10000)", hint: "High volatility or thin-liquidity assets." },
+                    ].map((tier) => (
+                      <RadioGroupItem key={tier.value} value={tier.value}>
+                        <div className="font-medium">{tier.label}</div>
+                        <p className="text-xs text-muted-foreground">{tier.hint}</p>
+                      </RadioGroupItem>
+                    ))}
+                  </RadioGroup>
+                </div>
+              )}
             </div>
             <div className="space-y-3 rounded-lg border p-4">
               <label className="flex items-center gap-2 text-sm font-medium">
