@@ -22,6 +22,13 @@ Forge is a simple, secure way to create fixed‑supply ERC‑20 tokens and run a
 - Set per‑chain addresses (exposed to the client):
   - `NEXT_PUBLIC_FACTORY_ADDRESS_32769` and `NEXT_PUBLIC_FACTORY_ADDRESS_33101`
   - `NEXT_PUBLIC_AIRDROPPER_ADDRESS_32769` and `NEXT_PUBLIC_AIRDROPPER_ADDRESS_33101`
+- Fair launch env vars:
+  - `NEXT_PUBLIC_FAIRLAUNCH_FACTORY_32769` / `NEXT_PUBLIC_FAIRLAUNCH_FACTORY_33101`
+  - `NEXT_PUBLIC_USDC_32769` / `NEXT_PUBLIC_USDC_33101`
+  - Router helpers (optional, but useful for UI validation/logging):
+    - `NEXT_PUBLIC_PLUNDER_FACTORY_V2_<chainId>`, `NEXT_PUBLIC_PLUNDER_ROUTER_V2_<chainId>`
+    - `NEXT_PUBLIC_PLUNDER_V3_FACTORY_<chainId>`, `NEXT_PUBLIC_PLUNDER_V3_POOL_DEPLOYER_<chainId>`,
+      `NEXT_PUBLIC_PLUNDER_V3_MIGRATOR_<chainId>`, `NEXT_PUBLIC_PLUNDER_V3_NFPM_<chainId>`
 - Restart the dev server after changing env.
 
 ## Cloudflare Workers (Setup)
@@ -52,6 +59,7 @@ Contracts live under `contracts/` and use Foundry/Forge.
 - Deploy (example):
   - Token Factory: `forge create src/ForgeTokenFactory.sol:ForgeTokenFactory --rpc-url <RPC> --private-key <PK>`
   - Airdropper: `forge create src/ForgeAirdropper.sol:ForgeAirdropper --rpc-url <RPC> --private-key <PK>`
+  - Fair Launch Factory: `forge script script/DeployFairLaunchFactory.s.sol --rpc-url <RPC> --private-key <PK> --broadcast`
 
 Scripts (forge script)
 
@@ -61,6 +69,10 @@ Scripts (forge script)
 - Set fee (sig): `forge script script/SetFee.s.sol --sig "run(address,uint256)" <factory> <feeWei> --rpc-url <RPC> --private-key <PK> --broadcast`
 - Set treasury (env): `FACTORY_ADDRESS=<addr> TREASURY_ADDRESS=<addr> forge script script/SetTreasury.s.sol --rpc-url <RPC> --private-key <PK> --broadcast`
 - Set treasury (sig): `forge script script/SetTreasury.s.sol --sig "run(address,address)" <factory> <treasury> --rpc-url <RPC> --private-key <PK> --broadcast`
+- Set fair launch fee (env): `FAIRLAUNCH_FACTORY_ADDRESS=<addr> FAIRLAUNCH_FEE_WEI=<wei> forge script script/FairLaunchSetFee.s.sol --rpc-url <RPC> --private-key <PK> --broadcast`
+- Set fair launch fee (sig): `forge script script/FairLaunchSetFee.s.sol --sig "run(address,uint256)" <factory> <feeWei> --rpc-url <RPC> --private-key <PK> --broadcast`
+- Set fair launch treasury (env): `FAIRLAUNCH_FACTORY_ADDRESS=<addr> FAIRLAUNCH_TREASURY=<addr> forge script script/FairLaunchSetTreasury.s.sol --rpc-url <RPC> --private-key <PK> --broadcast`
+- Set fair launch treasury (sig): `forge script script/FairLaunchSetTreasury.s.sol --sig "run(address,address)" <factory> <treasury> --rpc-url <RPC> --private-key <PK> --broadcast`
 
 Airdropper admin scripts
 
@@ -98,3 +110,12 @@ Airdrop
 - Approve the `ForgeAirdropper` for the total amount on your ERC‑20.
 - If an airdrop fee is configured, send `msg.value >= fee`.
 - Call `airdrop(token, recipients[], amounts[])` or `airdropEqual(token, recipients[], amountEach)`.
+
+Fair launch
+
+- Deploy `ForgeFairLaunchFactory` with:
+  - `treasury` (initial fee recipient)
+  - `usdc` token address for the chain
+  - `FairLaunchRouterConfig` pointing to PlunderSwap V2/V3 + Wrapped ZIL contracts
+- Configure it via the scripts above (`FairLaunchSetFee.s.sol`, `FairLaunchSetTreasury.s.sol`).
+- When creating a launch, deposit the total tokens required (`tokensForSale + liquidityPercent%`) and pay the flat ZIL creation fee (if configured). Contributors can raise in ZIL or USDC, and auto-listing will push liquidity to PlunderSwap V2 or V3 based on the launch config.

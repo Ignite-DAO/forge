@@ -238,3 +238,45 @@ Status update (OZ-based initial cut)
 
 - Airdropper is a simple loop and will be gas‑bound by recipient count; start with soft limit (e.g., 200–500 recipients per tx depending on chain gas limits). UI will split into multiple txs if needed.
 - Tokenlist updates via GitHub PR enable transparency and community contributions; initial seed list contains only verified Testnet assets from Forge.
+
+## 15) Fair Launch Launchpad
+
+- Goals
+  - PinkSale-style “fair launch” flow that accepts an existing ERC-20 address, raises in exactly one currency (ZIL or canonical USDC), and guarantees everyone receives the same token price after the sale closes.
+  - Keep creation simple (4 steps) while exposing advanced toggles: whitelist, optional per-wallet max, manual vs auto listing, PlunderSwap router type (v2/v3 full range), and liquidity lock duration presets (30d, 3m, 6m, 1y, indefinite).
+  - Surface the flow in `/fair-launch` with a discovery/detail page that shows live progress, per-wallet contribution stats, claim/finalize actions, and admin controls (pause, extend, cancel).
+
+- Contracts
+  - `ForgeFairLaunchFactory` stores the flat ZIL creation fee (configurable by owner), treasury recipient, and references to per-chain USDC tokens (Testnet `0x1fD09F6701a1852132A649fe9D07F2A3b991eCfA`, Mainnet `0xD8b73cEd1B16C047048f2c5EA42233DA33168198`) plus PlunderSwap router metadata.
+  - `createLaunch(...)` deploys a minimal proxy `ForgeFairLaunchPool` with immutable config: token address, raise currency (enum), tokens allocated to the sale, soft cap (required), optional hard cap (default = ∞), whitelist enable flag, optional per-wallet max, sale window (start/end timestamps), liquidity percent (51–100, default 80), auto-list toggle, router flavor (v2 or v3), liquidity lock duration, and metadata hashes.
+  - Pools hold both contributions and the creator’s token allocation, emit events (`LaunchCreated`, `Contribution`, `Refunded`, `Finalized`, `Cancelled`), and expose read helpers for the frontend (total raised, participant count, claimable amounts).
+  - Contribution rules: anyone (or only whitelisted addresses) can deposit during the window, soft cap must be met to finalize, refunds unlock automatically if the sale ends without meeting soft cap or is cancelled.
+  - Platform fee: launch creator must send `msg.value >= creationFee` in ZIL; excess is refunded and the fee is forwarded to `treasury`.
+
+- Liquidity & Listing
+  - Auto listing path:
+    - v2: route raised funds + matching token amount to PlunderSwapRouter (`0x33C6a20D2a605da9Fd1F506ddEd449355f0564fe`, factory `0xf42d1058f233329185A36B04B7f96105afa1adD2` on mainnet) and escrow received LP tokens inside the pool until `lockDuration` expires.
+    - v3 full-range: mint a position via `NonfungiblePositionManager` (Mainnet `0x17678B52997B89b179c0a471bF8d266A4A4c6AC5`, Testnet `0x3a7ef9Ad056D21E62a067619562bCdAEc8988b10`) using the provided liquidity share; hold the NFT until the lock expires (or indefinitely).
+    - Support additional Plunder v3 infra as constants/env (`PlunderV3Factory` Mainnet `0x000A3ED861B2cC98Cc5f1C0Eb4d1B53904c0c93a`, `PoolDeployer` `0x667f17594AA1fBd4d70e5914EDF9e8ad818e4Ef3`, `V3Migrator` `0xb72048adc590b926fA79fB3e54AAf33a39317A23`; Testnet `0x026d35f6e8D2a9Bb4BbC9380cDb7df20038aAaFa`, `0x601350273D21BEF3790146c24A1364f56c6E5084`, `0x38a30F5D0f44f8812D7FafF82655290aac6FB04B`).
+  - Manual listing: once finalized the creator withdraws raised funds + remaining tokens and handles PlunderSwap deposit themselves; pool still enforces proportional claims for contributors.
+  - Liquidity percent slider enforces 51–100% with default 80%; remaining funds/tokens flow back to the creator treasury post-finalize.
+
+- Frontend & UX
+  - New `/fair-launch` route implemented as a multi-step wizard:
+    1. **Verify token** — input ERC-20 address, fetch metadata, choose raise currency, pay fee preview.
+    2. **Configure sale** — tokens for sale, soft cap, optional hard cap, whitelist toggle upload, optional per-wallet max, sale window, liquidity percent slider, router (v2/v3), auto vs manual listing, lock duration select.
+    3. **Project details** — logo/banner URLs, website + social links, description (markdown), optional docs/roadmap links.
+    4. **Review & launch** — summary card, required approvals (token allowance), `createLaunch` call progress, and success state linking to the launch detail page.
+  - Launch detail view shows countdown, soft/hard cap progress, contribution form (handles currency conversions, wallet max validation), claim/refund states, and creator-only controls (finalize, pause, extend, cancel).
+  - Discovery list (simple grid/table) surfaces live/upcoming/completed launches with filters and links into the detail page so contributors can browse pools.
+
+- Environment & Tooling
+  - Add env vars: `NEXT_PUBLIC_FAIRLAUNCH_FACTORY_33101`, `NEXT_PUBLIC_FAIRLAUNCH_FACTORY_32769`, `NEXT_PUBLIC_USDC_33101`, `NEXT_PUBLIC_USDC_32769`, `NEXT_PUBLIC_PLUNDER_ROUTER_V2_[chainId]`, `NEXT_PUBLIC_PLUNDER_NFPM_[chainId]`, etc.
+  - Document the new addr constants in README + docs/DEPLOYS.md after deployment; ensure ABIs land in `src/lib/contracts`.
+  - Foundry tests: contributions, whitelist, per-wallet caps, refunds, manual finalize, auto v2 listing, auto v3 listing (mock), fee forwarding, liquidity lock enforcement.
+
+- Deliverables (verifiable)
+  - Contracts: `ForgeFairLaunchFactory.sol`, `ForgeFairLaunchPool.sol`, supporting libraries/tests under `contracts/`.
+  - Frontend: `/fair-launch` wizard + details, list view, shared hooks for reading pools, transaction toasts.
+  - Docs: updated PLAN, FRONTEND_SPEC, DEPLOYS, README, plus any new user guides.
+  - QA: manual smoke tests on Testnet (ZIL + USDC raises) and documentation of tx hashes.

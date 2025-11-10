@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -14,17 +15,14 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { SidebarResizeHandle } from "@/components/sidebar-resize-handle";
-import { Home, Coins, Gift, List } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Compass, Gift, Home, List, Sparkles } from "lucide-react";
 
 const items = [
   { href: "/", label: "Dashboard", icon: Home },
-  { href: "/create-token", label: "Create Token", icon: Coins },
+  { href: "/create-token", label: "Create Token", icon: Sparkles },
   { href: "/airdrop", label: "Airdrop", icon: Gift },
+  { href: "/fair-launch", label: "Launch Builder", icon: Compass },
+  { href: "/discover", label: "Launches", icon: Sparkles },
   { href: "/tokenlist", label: "Token List", icon: List },
 ] as const;
 
@@ -58,12 +56,13 @@ export function SidebarLayout({ children }: { children: React.ReactNode }) {
         <SidebarHeader>
           <div className="h-10 flex items-center px-2">
             <Link href="/" className="flex items-center gap-2 select-none">
-              <img
+              <Image
                 src="/forge_logo_text.svg"
                 alt="Forge"
                 className="h-4 brightness-0 dark:brightness-100"
                 height={16}
                 width={96}
+                priority
               />
             </Link>
           </div>

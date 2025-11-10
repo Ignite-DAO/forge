@@ -54,6 +54,24 @@ export default function Home() {
                 <Gift className="size-4" />
               </Link>
             </Button>
+            <Button asChild variant="secondary" size="lg">
+              <Link
+                href="/discover"
+                className="inline-flex items-center gap-1.5"
+              >
+                Browse Launches
+                <Sparkles className="size-4" />
+              </Link>
+            </Button>
+            <Button asChild variant="secondary" size="lg">
+              <Link
+                href="/fair-launch"
+                className="inline-flex items-center gap-1.5"
+              >
+                Fair Launchpad
+                <Sparkles className="size-4" />
+              </Link>
+            </Button>
           </div>
         </div>
         <div className="absolute -right-24 -top-24 size-72 rounded-full bg-primary/20 blur-3xl" />
@@ -106,9 +124,12 @@ export default function Home() {
             <p className="text-sm text-muted-foreground mt-2">
               Open to everyone, with optional liquidity locks that build instant community trust.
             </p>
-            <Badge className="mt-3" variant="outline">
-              Launching soon
-            </Badge>
+            <Button asChild size="sm" className="mt-4">
+              <Link href="/fair-launch" className="inline-flex items-center gap-1.5">
+                Build now
+                <Sparkles className="size-4" />
+              </Link>
+            </Button>
           </div>
           <div className="rounded-xl border border-border p-5">
             <div className="flex items-center gap-2">
