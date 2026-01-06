@@ -15,12 +15,13 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { SidebarResizeHandle } from "@/components/sidebar-resize-handle";
-import { Compass, Gift, Home, Sparkles } from "lucide-react";
+import { Compass, Gift, Home, Rocket, Sparkles } from "lucide-react";
 
 const items = [
   { href: "/", label: "Dashboard", icon: Home },
   { href: "/create-token", label: "Create Token", icon: Sparkles },
   { href: "/airdrop", label: "Airdrop", icon: Gift },
+  { href: "/bonding-curve", label: "Launch", icon: Rocket },
   { href: "/fair-launch", label: "Launch Builder", icon: Compass },
   { href: "/discover", label: "Launches", icon: Sparkles },
 ] as const;
