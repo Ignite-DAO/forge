@@ -1,6 +1,8 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { type NextRequest, NextResponse } from "next/server";
 
+const R2_PUBLIC_URL = process.env.NEXT_PUBLIC_R2_URL;
+
 type LaunchType = "bonding_curve" | "fair_launch";
 
 interface TokenMetadata {
@@ -71,7 +73,7 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      imageUrl = `/api/launches/images/${imageKey}`;
+      imageUrl = `${R2_PUBLIC_URL}/${imageKey}`;
     }
 
     const normalizedTwitter = twitter?.startsWith("@")
