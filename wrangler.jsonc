@@ -35,8 +35,7 @@
   "d1_databases": [
     {
       "binding": "FORGE_DB",
-      "database_name": "forge-db",
-      "database_id": "b0eb8ed3-5122-4640-9d7d-60e5f1008842"
+      "database_name": "forge-db"
     }
   ]
 }
