@@ -1,8 +1,6 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { type NextRequest, NextResponse } from "next/server";
 
-export const runtime = "edge";
-
 interface TokenMetadata {
   pool_address: string;
   chain_id: number;

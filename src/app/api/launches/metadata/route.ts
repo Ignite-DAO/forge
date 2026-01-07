@@ -1,8 +1,6 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { type NextRequest, NextResponse } from "next/server";
 
-export const runtime = "edge";
-
 type LaunchType = "bonding_curve" | "fair_launch";
 
 interface TokenMetadata {
