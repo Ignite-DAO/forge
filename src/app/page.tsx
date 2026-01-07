@@ -6,7 +6,6 @@ import {
   Sparkles,
   TrendingUp,
 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatUnits } from "viem";
@@ -347,12 +346,10 @@ function PoolCard({
         <CardHeader className="pb-3">
           <div className="flex items-start gap-3">
             {pool.metadata?.image_url ? (
-              <Image
+              <img
                 src={pool.metadata.image_url}
                 alt={pool.tokenName}
-                width={40}
-                height={40}
-                className="rounded-lg object-cover shrink-0"
+                className="size-10 rounded-lg object-cover shrink-0"
               />
             ) : (
               <div className="size-10 rounded-lg bg-muted flex items-center justify-center shrink-0">

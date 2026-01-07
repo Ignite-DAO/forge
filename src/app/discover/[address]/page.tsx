@@ -9,7 +9,6 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -366,12 +365,10 @@ export default function BondingCurvePoolPage() {
         <>
           <div className="flex items-start gap-4">
             {metadata?.image_url ? (
-              <Image
+              <img
                 src={metadata.image_url}
                 alt={pool.tokenName}
-                width={80}
-                height={80}
-                className="rounded-xl object-cover shrink-0"
+                className="size-20 rounded-xl object-cover shrink-0"
               />
             ) : (
               <div className="size-20 rounded-xl bg-muted flex items-center justify-center shrink-0">

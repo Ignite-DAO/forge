@@ -1,7 +1,6 @@
 "use client";
 
 import { Globe, Loader2, Rocket, Send, Upload, X } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -327,12 +326,10 @@ export default function BondingCurveLaunchPage() {
                   />
                   {imagePreview ? (
                     <div className="relative">
-                      <Image
+                      <img
                         src={imagePreview}
                         alt="Preview"
-                        width={120}
-                        height={120}
-                        className="rounded-lg object-cover"
+                        className="size-[120px] rounded-lg object-cover"
                       />
                       <button
                         type="button"

@@ -7,7 +7,6 @@ import {
   TrendingUp,
   Wallet,
 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatUnits } from "viem";
@@ -532,12 +531,10 @@ function BondingCurvePoolCard({
       <CardHeader className="pb-3">
         <Link href={detailHref} className="flex items-start gap-3 group">
           {pool.metadata?.image_url ? (
-            <Image
+            <img
               src={pool.metadata.image_url}
               alt={pool.tokenName}
-              width={48}
-              height={48}
-              className="rounded-lg object-cover shrink-0 group-hover:ring-2 group-hover:ring-primary/50 transition-all"
+              className="size-12 rounded-lg object-cover shrink-0 group-hover:ring-2 group-hover:ring-primary/50 transition-all"
             />
           ) : (
             <div className="size-12 rounded-lg bg-muted flex items-center justify-center shrink-0 group-hover:ring-2 group-hover:ring-primary/50 transition-all">
