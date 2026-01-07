@@ -23,10 +23,20 @@
     }
   ],
   "r2_buckets": [
-    // Create a R2 binding with the binding name "NEXT_INC_CACHE_R2_BUCKET"
     {
       "binding": "NEXT_INC_CACHE_R2_BUCKET",
       "bucket_name": "cache"
+    },
+    {
+      "binding": "FORGE_IMAGES",
+      "bucket_name": "forge-images"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "FORGE_DB",
+      "database_name": "forge-db",
+      "database_id": "b0eb8ed3-5122-4640-9d7d-60e5f1008842"
     }
   ]
 }
