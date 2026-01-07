@@ -241,7 +241,7 @@ export default function FairLaunchPage() {
     resolver: zodResolver(formSchema) as any,
     mode: "onChange",
     defaultValues: {
-      tokenAddress: "",
+      tokenAddress: "" as `0x${string}`,
       currency: "ZIL",
       saleAmount: "1000000",
       softCap: "100",
