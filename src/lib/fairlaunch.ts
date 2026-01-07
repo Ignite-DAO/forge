@@ -51,15 +51,25 @@ export function getCurrencyMeta(code: FairLaunchCurrencyCode): CurrencyMeta {
   return meta;
 }
 
-export function tokensForLiquidity(tokensForSale: bigint, liquidityPercent: number) {
+export function tokensForLiquidity(
+  tokensForSale: bigint,
+  liquidityPercent: number,
+) {
   return (tokensForSale * BigInt(liquidityPercent)) / 100n;
 }
 
-export function totalTokensRequired(tokensForSale: bigint, liquidityPercent: number) {
+export function totalTokensRequired(
+  tokensForSale: bigint,
+  liquidityPercent: number,
+) {
   return tokensForSale + tokensForLiquidity(tokensForSale, liquidityPercent);
 }
 
-export function formatTokenAmount(amount: bigint, decimals: number, fractionDigits = 6) {
+export function formatTokenAmount(
+  amount: bigint,
+  decimals: number,
+  fractionDigits = 6,
+) {
   const formatted = formatUnits(amount, decimals);
   const [whole, frac = ""] = formatted.split(".");
   if (fractionDigits === 0) return whole;

@@ -1,31 +1,42 @@
 "use client";
 
+import { ArrowLeft, Coins, Info, TimerReset } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import {
   useAccount,
-  useChainId,
   usePublicClient,
-  useWriteContract,
   useWaitForTransactionReceipt,
+  useWriteContract,
 } from "wagmi";
-import { toast } from "sonner";
-import { ArrowLeft, Coins, TimerReset, Info } from "lucide-react";
+import { useNetwork } from "@/providers/network";
 
 import { erc20Abi } from "@/abi/erc20";
-import { abis } from "@/lib/contracts";
-import { FairLaunchCurrencyCode, formatTokenAmount, getCurrencyMeta, parseAmount } from "@/lib/fairlaunch";
 import { PageHeader } from "@/components/page-header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
-import { formatAddress } from "@/lib/format";
+import { abis } from "@/lib/contracts";
 import { addressUrl, txUrl } from "@/lib/explorer";
+import {
+  type FairLaunchCurrencyCode,
+  formatTokenAmount,
+  getCurrencyMeta,
+  parseAmount,
+} from "@/lib/fairlaunch";
+import { formatAddress } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 interface PoolDetail {
   pool: `0x${string}`;
@@ -45,7 +56,10 @@ interface PoolDetail {
   creator: `0x${string}`;
 }
 
-const statusLabels: Record<number, { label: string; intent: "default" | "success" | "warn" }> = {
+const statusLabels: Record<
+  number,
+  { label: string; intent: "default" | "success" | "warn" }
+> = {
   0: { label: "Upcoming", intent: "default" },
   1: { label: "Live", intent: "success" },
   2: { label: "Ready to finalize", intent: "warn" },
@@ -56,9 +70,11 @@ const statusLabels: Record<number, { label: string; intent: "default" | "success
 
 export default function LaunchDetailPage() {
   const params = useParams<{ address: string }>();
-  const poolAddress = params?.address?.toLowerCase() as `0x${string}` | undefined;
-  const chainId = useChainId();
-  const publicClient = usePublicClient();
+  const poolAddress = params?.address?.toLowerCase() as
+    | `0x${string}`
+    | undefined;
+  const { chainId } = useNetwork();
+  const publicClient = usePublicClient({ chainId });
   const { address, isConnected } = useAccount();
 
   const [pool, setPool] = useState<PoolDetail | null>(null);
@@ -69,7 +85,9 @@ export default function LaunchDetailPage() {
   const [contributionInput, setContributionInput] = useState("");
 
   const { writeContractAsync, isPending: isWriting } = useWriteContract();
-  const { isLoading: isClaimConfirming } = useWaitForTransactionReceipt({ hash: claimTx ?? undefined });
+  const { isLoading: isClaimConfirming } = useWaitForTransactionReceipt({
+    hash: claimTx ?? undefined,
+  });
 
   useEffect(() => {
     if (!poolAddress || !publicClient) return;
@@ -184,7 +202,9 @@ export default function LaunchDetailPage() {
             tokenSymbol,
             tokenName,
             tokenDecimals,
-            currency: (Number(currency) === 0 ? "ZIL" : "USDC") as FairLaunchCurrencyCode,
+            currency: (Number(currency) === 0
+              ? "ZIL"
+              : "USDC") as FairLaunchCurrencyCode,
             tokensForSale: tokensForSale as bigint,
             totalRaised: totalRaised as bigint,
             softCap: softCap as bigint,
@@ -243,20 +263,30 @@ export default function LaunchDetailPage() {
     contributionInput && currencyMeta
       ? (() => {
           try {
-            return parseAmount(contributionInput.replace(",", "."), currencyMeta.decimals);
+            return parseAmount(
+              contributionInput.replace(",", "."),
+              currencyMeta.decimals,
+            );
           } catch {
             return null;
           }
         })()
       : null;
 
-  const isCreator = pool && address && pool.creator.toLowerCase() === address.toLowerCase();
+  const isCreator =
+    pool && address && pool.creator.toLowerCase() === address.toLowerCase();
   const now = Date.now();
-  const isLive = pool && pool.status === 1 && pool.startTime * 1000 <= now && pool.endTime * 1000 >= now;
+  const isLive =
+    pool &&
+    pool.status === 1 &&
+    pool.startTime * 1000 <= now &&
+    pool.endTime * 1000 >= now;
   const isFinalized = pool && pool.status === 3;
   const isRefundEnabled = pool && (pool.status === 4 || pool.status === 5);
 
-  const statusConfig = pool ? statusLabels[pool.status] ?? statusLabels[0] : statusLabels[0];
+  const statusConfig = pool
+    ? (statusLabels[pool.status] ?? statusLabels[0])
+    : statusLabels[0];
 
   const handleContribute = async () => {
     if (!pool || !currencyMeta || contributionBigint == null || !poolAddress) {
@@ -275,6 +305,7 @@ export default function LaunchDetailPage() {
           functionName: "contribute",
           args: [0n, []],
           value: contributionBigint,
+          chainId,
         });
       } else {
         await writeContractAsync({
@@ -282,6 +313,7 @@ export default function LaunchDetailPage() {
           address: pool.pool,
           functionName: "contribute",
           args: [contributionBigint, []],
+          chainId,
         });
       }
       toast.success("Contribution submitted");
@@ -299,6 +331,7 @@ export default function LaunchDetailPage() {
         abi: abis.forgeFairLaunchPool,
         address: pool.pool,
         functionName: "claim",
+        chainId,
       });
       setClaimTx(tx);
       toast.info("Claim submitted");
@@ -315,6 +348,7 @@ export default function LaunchDetailPage() {
         abi: abis.forgeFairLaunchPool,
         address: pool.pool,
         functionName: "refund",
+        chainId,
       });
       toast.info("Refund transaction sent");
     } catch (err: any) {
@@ -331,6 +365,7 @@ export default function LaunchDetailPage() {
         address: pool.pool,
         functionName: "finalize",
         args: [0n, 0n],
+        chainId,
       });
       toast.info("Finalize transaction submitted");
     } catch (err: any) {
@@ -341,7 +376,11 @@ export default function LaunchDetailPage() {
 
   return (
     <div className="space-y-6 pb-10">
-      <Button asChild variant="ghost" className="h-auto p-0 text-sm text-muted-foreground">
+      <Button
+        asChild
+        variant="ghost"
+        className="h-auto p-0 text-sm text-muted-foreground"
+      >
         <Link href="/discover" className="inline-flex items-center gap-2">
           <ArrowLeft className="size-4" />
           Back to launches
@@ -373,13 +412,22 @@ export default function LaunchDetailPage() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-xl">{pool.tokenSymbol} fair launch</CardTitle>
+                    <CardTitle className="text-xl">
+                      {pool.tokenSymbol} fair launch
+                    </CardTitle>
                     <CardDescription>
                       {statusConfig.label} · Soft cap{" "}
-                      {formatTokenAmount(pool.softCap, currencyMeta.decimals)} {currencyMeta.symbol}
+                      {formatTokenAmount(pool.softCap, currencyMeta.decimals)}{" "}
+                      {currencyMeta.symbol}
                     </CardDescription>
                   </div>
-                  <Badge variant={statusConfig.intent === "success" ? "default" : "secondary"}>
+                  <Badge
+                    variant={
+                      statusConfig.intent === "success"
+                        ? "default"
+                        : "secondary"
+                    }
+                  >
                     {statusConfig.label}
                   </Badge>
                 </div>
@@ -387,10 +435,12 @@ export default function LaunchDetailPage() {
               <CardContent className="space-y-6">
                 <div className="grid gap-4 md:grid-cols-3">
                   <Stat label="Total raised">
-                    {formatTokenAmount(pool.totalRaised, currencyMeta.decimals)} {currencyMeta.symbol}
+                    {formatTokenAmount(pool.totalRaised, currencyMeta.decimals)}{" "}
+                    {currencyMeta.symbol}
                   </Stat>
                   <Stat label="Tokens for sale">
-                    {formatTokenAmount(pool.tokensForSale, pool.tokenDecimals)} {pool.tokenSymbol}
+                    {formatTokenAmount(pool.tokensForSale, pool.tokenDecimals)}{" "}
+                    {pool.tokenSymbol}
                   </Stat>
                   <Stat label="Currency">
                     {currencyMeta.label} ({currencyMeta.symbol})
@@ -398,9 +448,15 @@ export default function LaunchDetailPage() {
                 </div>
                 {isConnected && (
                   <div className="rounded-lg border bg-muted/40 p-3 text-sm">
-                    <p className="text-xs text-muted-foreground">Your contribution</p>
+                    <p className="text-xs text-muted-foreground">
+                      Your contribution
+                    </p>
                     <p className="text-base font-semibold">
-                      {formatTokenAmount(userContribution ?? 0n, currencyMeta.decimals)} {currencyMeta.symbol}
+                      {formatTokenAmount(
+                        userContribution ?? 0n,
+                        currencyMeta.decimals,
+                      )}{" "}
+                      {currencyMeta.symbol}
                     </p>
                   </div>
                 )}
@@ -427,14 +483,18 @@ export default function LaunchDetailPage() {
                   <div className="flex flex-col gap-3 sm:flex-row">
                     <Input
                       value={contributionInput}
-                      onChange={(event) => setContributionInput(event.target.value)}
+                      onChange={(event) =>
+                        setContributionInput(event.target.value)
+                      }
                       placeholder={`0.0 ${currencyMeta.symbol}`}
                       type="text"
                       disabled={!isLive}
                     />
                     <Button
                       onClick={handleContribute}
-                      disabled={!isLive || isWriting || contributionBigint == null}
+                      disabled={
+                        !isLive || isWriting || contributionBigint == null
+                      }
                     >
                       {isWriting ? "Pending…" : "Contribute"}
                     </Button>
@@ -446,10 +506,18 @@ export default function LaunchDetailPage() {
                   )}
                 </div>
                 <div className="flex flex-wrap gap-3">
-                  <Button variant="outline" onClick={handleClaim} disabled={!isFinalized || isClaimConfirming}>
+                  <Button
+                    variant="outline"
+                    onClick={handleClaim}
+                    disabled={!isFinalized || isClaimConfirming}
+                  >
                     Claim tokens
                   </Button>
-                  <Button variant="outline" onClick={handleRefund} disabled={!isRefundEnabled}>
+                  <Button
+                    variant="outline"
+                    onClick={handleRefund}
+                    disabled={!isRefundEnabled}
+                  >
                     Claim refund
                   </Button>
                   {isCreator && pool.status === 2 && (
@@ -475,9 +543,12 @@ export default function LaunchDetailPage() {
                       {formatAddress(pool.pool)}
                     </Link>
                   </DetailRow>
-                  <DetailRow label="Creator">{formatAddress(pool.creator)}</DetailRow>
+                  <DetailRow label="Creator">
+                    {formatAddress(pool.creator)}
+                  </DetailRow>
                   <DetailRow label="Soft cap">
-                    {formatTokenAmount(pool.softCap, currencyMeta.decimals)} {currencyMeta.symbol}
+                    {formatTokenAmount(pool.softCap, currencyMeta.decimals)}{" "}
+                    {currencyMeta.symbol}
                   </DetailRow>
                   <DetailRow label="Hard cap">
                     {pool.hardCap === 0n
@@ -495,8 +566,14 @@ export default function LaunchDetailPage() {
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm text-muted-foreground">
                   <p>1. Connect your wallet on the correct chain.</p>
-                  <p>2. Enter the amount you wish to contribute and submit the transaction.</p>
-                  <p>3. After the sale finalizes, return here to claim your tokens.</p>
+                  <p>
+                    2. Enter the amount you wish to contribute and submit the
+                    transaction.
+                  </p>
+                  <p>
+                    3. After the sale finalizes, return here to claim your
+                    tokens.
+                  </p>
                 </CardContent>
               </Card>
             </div>
@@ -507,7 +584,13 @@ export default function LaunchDetailPage() {
   );
 }
 
-function Stat({ label, children }: { label: string; children: React.ReactNode }) {
+function Stat({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="rounded-lg border bg-muted/40 p-3 text-sm">
       <p className="text-xs text-muted-foreground">{label}</p>
@@ -516,7 +599,13 @@ function Stat({ label, children }: { label: string; children: React.ReactNode })
   );
 }
 
-function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
+function DetailRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex items-center justify-between gap-3 text-sm">
       <span className="text-muted-foreground">{label}</span>

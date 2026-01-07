@@ -1,4 +1,7 @@
 "use client";
+import { useMemo, useState } from "react";
+import { PageHeader } from "@/components/page-header";
+import { useNetwork } from "@/providers/network";
 import {
   Card,
   CardContent,
@@ -6,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -14,15 +18,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useTokenCreations, formatSupply } from "@/hooks/use-token-creations";
-import { useChainId } from "wagmi";
+import { formatSupply, useTokenCreations } from "@/hooks/use-token-creations";
 import { addressUrl, txUrl } from "@/lib/explorer";
-import { PageHeader } from "@/components/page-header";
-import { Input } from "@/components/ui/input";
-import { useMemo, useState } from "react";
 
 export default function TokenListPage() {
-  const chainId = useChainId();
+  const { chainId } = useNetwork();
   const { data, isLoading, refetch } = useTokenCreations();
   const [q, setQ] = useState("");
   const filtered = useMemo(() => {

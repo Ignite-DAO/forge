@@ -1,9 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useChainId, usePublicClient } from "wagmi";
-import { getFactoryAddress, abis } from "@/lib/contracts";
 import { formatUnits } from "viem";
+import { usePublicClient } from "wagmi";
+import { useNetwork } from "@/providers/network";
+import { abis, getFactoryAddress } from "@/lib/contracts";
 
 type TokenCreated = {
   token: `0x${string}`;
@@ -17,8 +18,8 @@ type TokenCreated = {
 };
 
 export function useTokenCreations(fromBlock?: bigint) {
-  const chainId = useChainId();
-  const client = usePublicClient();
+  const { chainId } = useNetwork();
+  const client = usePublicClient({ chainId });
   const address = getFactoryAddress(chainId);
 
   return useQuery({

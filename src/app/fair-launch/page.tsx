@@ -1,20 +1,34 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useAccount, useChainId, usePublicClient, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { decodeEventLog, formatUnits, isAddress } from "viem";
-import { toast } from "sonner";
 import { Loader2, ShieldCheck } from "lucide-react";
-
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { decodeEventLog, formatUnits, isAddress } from "viem";
+import {
+  useAccount,
+  usePublicClient,
+  useReadContract,
+  useWaitForTransactionReceipt,
+  useWriteContract,
+} from "wagmi";
+import { useNetwork } from "@/providers/network";
+import { z } from "zod";
+import { erc20Abi } from "@/abi/erc20";
 import { PageHeader } from "@/components/page-header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -22,33 +36,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
-
+import { Textarea } from "@/components/ui/textarea";
 import { abis, getFairLaunchFactoryAddress } from "@/lib/contracts";
-import { erc20Abi } from "@/abi/erc20";
+import { addressUrl, txUrl } from "@/lib/explorer";
 import {
   FAIR_LAUNCH_CURRENCIES,
-  FairLaunchCurrencyCode,
+  type FairLaunchCurrencyCode,
   FairLaunchCurrencyId,
-  FairLaunchRouterKindCode,
+  type FairLaunchRouterKindCode,
   FairLaunchRouterKindId,
+  formatTokenAmount,
+  getCurrencyMeta,
   LIQUIDITY_MAX,
   LIQUIDITY_MIN,
   LOCK_OPTIONS,
-  formatTokenAmount,
-  getCurrencyMeta,
   parseAmount,
   parseLockDuration,
   tokensForLiquidity,
   totalTokensRequired,
 } from "@/lib/fairlaunch";
 import { cn } from "@/lib/utils";
-import { addressUrl, txUrl } from "@/lib/explorer";
 
 const decimalPattern = /^\d+(?:[.,]\d+)?$/;
-const ZERO_BYTES32 = "0x0000000000000000000000000000000000000000000000000000000000000000";
+const ZERO_BYTES32 =
+  "0x0000000000000000000000000000000000000000000000000000000000000000";
 
 const formSchema = z
   .object({
@@ -72,12 +84,18 @@ const formSchema = z
       .string()
       .trim()
       .optional()
-      .refine((value) => !value || decimalPattern.test(value), "Enter a number"),
+      .refine(
+        (value) => !value || decimalPattern.test(value),
+        "Enter a number",
+      ),
     maxContribution: z
       .string()
       .trim()
       .optional()
-      .refine((value) => !value || decimalPattern.test(value), "Enter a number"),
+      .refine(
+        (value) => !value || decimalPattern.test(value),
+        "Enter a number",
+      ),
     startTime: z.string().min(1, "Required"),
     endTime: z.string().min(1, "Required"),
     liquidityPercent: z.coerce.number().min(LIQUIDITY_MIN).max(LIQUIDITY_MAX),
@@ -91,7 +109,8 @@ const formSchema = z
       .trim()
       .optional()
       .refine(
-        (value) => !value || value === ZERO_BYTES32 || /^0x[0-9a-fA-F]{64}$/.test(value),
+        (value) =>
+          !value || value === ZERO_BYTES32 || /^0x[0-9a-fA-F]{64}$/.test(value),
         "Enter a bytes32 value",
       ),
     projectName: z.string().trim().min(1, "Required"),
@@ -105,7 +124,10 @@ const formSchema = z
   .refine(
     (data) => {
       if (!data.hardCap) return true;
-      return parseFloat(data.hardCap.replace(",", ".")) >= parseFloat(data.softCap.replace(",", "."));
+      return (
+        parseFloat(data.hardCap.replace(",", ".")) >=
+        parseFloat(data.softCap.replace(",", "."))
+      );
     },
     {
       message: "Hard cap must be ≥ soft cap",
@@ -134,7 +156,10 @@ const formSchema = z
 type FormValues = z.infer<typeof formSchema>;
 
 const steps = [
-  { title: "Verify token", description: "Provide the ERC-20 you plan to sell." },
+  {
+    title: "Verify token",
+    description: "Provide the ERC-20 you plan to sell.",
+  },
   { title: "Configure sale", description: "Set amounts, caps, and timing." },
   { title: "Project details", description: "Add basic metadata and links." },
   { title: "Review & launch", description: "Confirm approvals and deploy." },
@@ -152,7 +177,15 @@ const stepFields: (keyof FormValues)[][] = [
     "liquidityPercent",
     "lockDuration",
   ],
-  ["projectName", "website", "twitter", "telegram", "logoUrl", "bannerUrl", "description"],
+  [
+    "projectName",
+    "website",
+    "twitter",
+    "telegram",
+    "logoUrl",
+    "bannerUrl",
+    "description",
+  ],
   [],
 ];
 
@@ -190,14 +223,18 @@ function toUnix(value: string) {
 }
 
 export default function FairLaunchPage() {
-  const chainId = useChainId();
+  const { chainId } = useNetwork();
   const factory = getFairLaunchFactoryAddress(chainId);
   const { address, isConnected } = useAccount();
-  const publicClient = usePublicClient();
+  const publicClient = usePublicClient({ chainId });
 
   const currentTime = Date.now();
-  const defaultStart = formatDateTimeInput(new Date(currentTime + 60 * 60 * 1000));
-  const defaultEnd = formatDateTimeInput(new Date(currentTime + 24 * 60 * 60 * 1000));
+  const defaultStart = formatDateTimeInput(
+    new Date(currentTime + 60 * 60 * 1000),
+  );
+  const defaultEnd = formatDateTimeInput(
+    new Date(currentTime + 24 * 60 * 60 * 1000),
+  );
 
   const form = useForm<FormValues>({
     // Cast due to coerce types producing wider resolver signature.
@@ -229,7 +266,8 @@ export default function FairLaunchPage() {
     },
   });
 
-const { register, watch, handleSubmit, setValue, formState, trigger, reset } = form;
+  const { register, watch, handleSubmit, setValue, formState, trigger, reset } =
+    form;
   const { errors, isValid } = formState;
   const [step, setStep] = useState(0);
   const [createdLaunch, setCreatedLaunch] = useState<{
@@ -254,18 +292,21 @@ const { register, watch, handleSubmit, setValue, formState, trigger, reset } = f
     abi: erc20Abi,
     address: tokenAddress as `0x${string}`,
     functionName: "decimals",
+    chainId,
     query: { enabled: tokenQueryEnabled },
   });
   const { data: tokenSymbol } = useReadContract({
     abi: erc20Abi,
     address: tokenAddress as `0x${string}`,
     functionName: "symbol",
+    chainId,
     query: { enabled: tokenQueryEnabled },
   });
   const { data: tokenName } = useReadContract({
     abi: erc20Abi,
     address: tokenAddress as `0x${string}`,
     functionName: "name",
+    chainId,
     query: { enabled: tokenQueryEnabled },
   });
 
@@ -273,6 +314,7 @@ const { register, watch, handleSubmit, setValue, formState, trigger, reset } = f
     abi: abis.forgeFairLaunchFactory,
     address: factory ?? undefined,
     functionName: "creationFee",
+    chainId,
     query: { enabled: Boolean(factory) },
   });
 
@@ -284,9 +326,13 @@ const { register, watch, handleSubmit, setValue, formState, trigger, reset } = f
       : null;
 
   const liquidityTokens =
-    parsedSaleAmount != null ? tokensForLiquidity(parsedSaleAmount, liquidityPercent) : null;
+    parsedSaleAmount != null
+      ? tokensForLiquidity(parsedSaleAmount, liquidityPercent)
+      : null;
   const tokensNeeded =
-    parsedSaleAmount != null ? totalTokensRequired(parsedSaleAmount, liquidityPercent) : null;
+    parsedSaleAmount != null
+      ? totalTokensRequired(parsedSaleAmount, liquidityPercent)
+      : null;
 
   const { data: allowance } = useReadContract({
     abi: erc20Abi,
@@ -296,6 +342,7 @@ const { register, watch, handleSubmit, setValue, formState, trigger, reset } = f
       address ?? "0x0000000000000000000000000000000000000000",
       factory ?? "0x0000000000000000000000000000000000000000",
     ],
+    chainId,
     query: {
       enabled: Boolean(address && factory && tokenQueryEnabled),
     },
@@ -304,24 +351,25 @@ const { register, watch, handleSubmit, setValue, formState, trigger, reset } = f
   const needsApproval =
     tokensNeeded != null && allowance != null ? allowance < tokensNeeded : true;
 
-  const {
-    writeContractAsync: approveAsync,
-    isPending: isApproving,
-  } = useWriteContract();
+  const { writeContractAsync: approveAsync, isPending: isApproving } =
+    useWriteContract();
   const {
     writeContract,
     data: launchHash,
     isPending: isLaunching,
   } = useWriteContract();
-  const { isSuccess: launchConfirmed, isLoading: isConfirming } = useWaitForTransactionReceipt({
-    hash: launchHash,
-  });
+  const { isSuccess: launchConfirmed, isLoading: isConfirming } =
+    useWaitForTransactionReceipt({
+      hash: launchHash,
+    });
 
   useEffect(() => {
     if (!launchConfirmed || !launchHash || !publicClient || !factory) return;
     (async () => {
       try {
-        const receipt = await publicClient.getTransactionReceipt({ hash: launchHash });
+        const receipt = await publicClient.getTransactionReceipt({
+          hash: launchHash,
+        });
         const events = receipt.logs
           .map((log) => {
             try {
@@ -335,7 +383,9 @@ const { register, watch, handleSubmit, setValue, formState, trigger, reset } = f
             }
           })
           .filter(Boolean) as Array<{ eventName: string; args: any }>;
-        const created = events.find((evt) => evt.eventName === "FairLaunchCreated");
+        const created = events.find(
+          (evt) => evt.eventName === "FairLaunchCreated",
+        );
         if (created) {
           setCreatedLaunch({
             pool: created.args.pool,
@@ -367,6 +417,7 @@ const { register, watch, handleSubmit, setValue, formState, trigger, reset } = f
         address: tokenAddress as `0x${string}`,
         functionName: "approve",
         args: [factory, tokensNeeded],
+        chainId,
       });
       toast.success("Approval submitted");
     } catch (error: any) {
@@ -390,12 +441,18 @@ const { register, watch, handleSubmit, setValue, formState, trigger, reset } = f
     }
 
     const saleAmountUnits = parsedSaleAmount;
-    const softCapUnits = parseAmount(values.softCap.replace(",", "."), currencyMeta.decimals);
+    const softCapUnits = parseAmount(
+      values.softCap.replace(",", "."),
+      currencyMeta.decimals,
+    );
     const hardCapUnits = values.hardCap
       ? parseAmount(values.hardCap.replace(",", "."), currencyMeta.decimals)
       : 0n;
     const maxContributionUnits = values.maxContribution
-      ? parseAmount(values.maxContribution.replace(",", "."), currencyMeta.decimals)
+      ? parseAmount(
+          values.maxContribution.replace(",", "."),
+          currencyMeta.decimals,
+        )
       : 0n;
     const lockDuration = parseLockDuration(values.lockDuration);
     const whitelistRoot =
@@ -411,7 +468,8 @@ const { register, watch, handleSubmit, setValue, formState, trigger, reset } = f
         args: [
           {
             token: values.tokenAddress as `0x${string}`,
-            currency: FairLaunchCurrencyId[values.currency as FairLaunchCurrencyCode],
+            currency:
+              FairLaunchCurrencyId[values.currency as FairLaunchCurrencyCode],
             tokensForSale: saleAmountUnits,
             softCap: softCapUnits,
             hardCap: hardCapUnits,
@@ -420,7 +478,10 @@ const { register, watch, handleSubmit, setValue, formState, trigger, reset } = f
             endTime: BigInt(toUnix(values.endTime)),
             liquidityPercent: values.liquidityPercent,
             autoListing: values.autoListing,
-            routerKind: FairLaunchRouterKindId[values.routerKind as FairLaunchRouterKindCode],
+            routerKind:
+              FairLaunchRouterKindId[
+                values.routerKind as FairLaunchRouterKindCode
+              ],
             v3Fee: Number(values.v3FeeTier),
             lockDuration,
             whitelistRoot,
@@ -429,6 +490,7 @@ const { register, watch, handleSubmit, setValue, formState, trigger, reset } = f
           },
         ],
         value: creationFee,
+        chainId,
       });
       toast.info("Creating launchpad...");
     } catch (error: any) {
@@ -451,11 +513,14 @@ const { register, watch, handleSubmit, setValue, formState, trigger, reset } = f
                 autoComplete="off"
               />
               {errors.tokenAddress && (
-                <p className="text-sm text-destructive">{errors.tokenAddress.message}</p>
+                <p className="text-sm text-destructive">
+                  {errors.tokenAddress.message}
+                </p>
               )}
               {tokenName && (
                 <p className="text-sm text-muted-foreground">
-                  Detected token: {tokenName} ({tokenSymbol ?? "?"}) · {tokenDecimals ?? "?"} decimals
+                  Detected token: {tokenName} ({tokenSymbol ?? "?"}) ·{" "}
+                  {tokenDecimals ?? "?"} decimals
                 </p>
               )}
             </div>
@@ -463,7 +528,9 @@ const { register, watch, handleSubmit, setValue, formState, trigger, reset } = f
               <Label>Raise currency</Label>
               <RadioGroup
                 value={currencyCode}
-                onValueChange={(value) => setValue("currency", value as FormValues["currency"])}
+                onValueChange={(value) =>
+                  setValue("currency", value as FormValues["currency"])
+                }
                 className="grid gap-2 sm:grid-cols-2"
               >
                 {FAIR_LAUNCH_CURRENCIES.map((option) => (
@@ -488,7 +555,11 @@ const { register, watch, handleSubmit, setValue, formState, trigger, reset } = f
                 label={`Total selling amount (${tokenSymbol ?? "TOKEN"})`}
                 error={errors.saleAmount?.message}
               >
-                <Input type="text" placeholder="1000000" {...register("saleAmount")} />
+                <Input
+                  type="text"
+                  placeholder="1000000"
+                  {...register("saleAmount")}
+                />
               </FormField>
               <FormField
                 label={`Soft cap (${currencyMeta.symbol})`}
@@ -496,23 +567,44 @@ const { register, watch, handleSubmit, setValue, formState, trigger, reset } = f
               >
                 <Input type="text" placeholder="100" {...register("softCap")} />
               </FormField>
-              <FormField label="Hard cap (optional)" error={errors.hardCap?.message}>
+              <FormField
+                label="Hard cap (optional)"
+                error={errors.hardCap?.message}
+              >
                 <Input type="text" placeholder="200" {...register("hardCap")} />
               </FormField>
-              <FormField label="Max per wallet (optional)" error={errors.maxContribution?.message}>
-                <Input type="text" placeholder="5" {...register("maxContribution")} />
+              <FormField
+                label="Max per wallet (optional)"
+                error={errors.maxContribution?.message}
+              >
+                <Input
+                  type="text"
+                  placeholder="5"
+                  {...register("maxContribution")}
+                />
               </FormField>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <FormField label="Start time" error={errors.startTime?.message}>
-                <Input type="datetime-local" step="60" {...register("startTime")} />
+                <Input
+                  type="datetime-local"
+                  step="60"
+                  {...register("startTime")}
+                />
               </FormField>
               <FormField label="End time" error={errors.endTime?.message}>
-                <Input type="datetime-local" step="60" {...register("endTime")} />
+                <Input
+                  type="datetime-local"
+                  step="60"
+                  {...register("endTime")}
+                />
               </FormField>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              <FormField label="Liquidity percentage" error={errors.liquidityPercent?.message}>
+              <FormField
+                label="Liquidity percentage"
+                error={errors.liquidityPercent?.message}
+              >
                 <Input
                   type="number"
                   min={LIQUIDITY_MIN}
@@ -523,8 +615,14 @@ const { register, watch, handleSubmit, setValue, formState, trigger, reset } = f
                   {LIQUIDITY_MIN}% minimum. Default 80%.
                 </p>
               </FormField>
-              <FormField label="Lock duration" error={errors.lockDuration?.message}>
-                <Select value={lockDurationValue} onValueChange={(value) => setValue("lockDuration", value)}>
+              <FormField
+                label="Lock duration"
+                error={errors.lockDuration?.message}
+              >
+                <Select
+                  value={lockDurationValue}
+                  onValueChange={(value) => setValue("lockDuration", value)}
+                >
                   <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
@@ -544,29 +642,37 @@ const { register, watch, handleSubmit, setValue, formState, trigger, reset } = f
                   type="checkbox"
                   className="size-4"
                   checked={autoListing}
-                  onChange={(event) => setValue("autoListing", event.target.checked)}
+                  onChange={(event) =>
+                    setValue("autoListing", event.target.checked)
+                  }
                 />
                 Auto listing on PlunderSwap
               </label>
               {!autoListing && (
                 <p className="text-xs text-muted-foreground">
-                  Manual mode: you will receive the raised funds and liquidity tokens to add the pool
-                  yourself.
+                  Manual mode: you will receive the raised funds and liquidity
+                  tokens to add the pool yourself.
                 </p>
               )}
               <div className="flex flex-col gap-2 md:flex-row md:items-center">
                 <span className="text-sm font-medium">Router</span>
                 <Select
                   value={routerKindValue}
-                  onValueChange={(value) => setValue("routerKind", value as FormValues["routerKind"])}
+                  onValueChange={(value) =>
+                    setValue("routerKind", value as FormValues["routerKind"])
+                  }
                   disabled={!autoListing}
                 >
                   <SelectTrigger className="w-full md:w-48">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="V2">PlunderSwap V2 (LP tokens)</SelectItem>
-                    <SelectItem value="V3">PlunderSwap V3 full-range</SelectItem>
+                    <SelectItem value="V2">
+                      PlunderSwap V2 (LP tokens)
+                    </SelectItem>
+                    <SelectItem value="V3">
+                      PlunderSwap V3 full-range
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -577,18 +683,38 @@ const { register, watch, handleSubmit, setValue, formState, trigger, reset } = f
                   </p>
                   <RadioGroup
                     value={v3FeeTier}
-                    onValueChange={(value) => setValue("v3FeeTier", value as FormValues["v3FeeTier"])}
+                    onValueChange={(value) =>
+                      setValue("v3FeeTier", value as FormValues["v3FeeTier"])
+                    }
                     className="grid gap-2 sm:grid-cols-2"
                   >
                     {[
-                      { value: "100", label: "0.01% (100)", hint: "Ultra-low fee for blue-chip pairs." },
-                      { value: "500", label: "0.05% (500)", hint: "Low volatility or deep-liquidity pairs." },
-                      { value: "2500", label: "0.25% (2500)", hint: "Balanced option for most new launches." },
-                      { value: "10000", label: "1% (10000)", hint: "High volatility or thin-liquidity assets." },
+                      {
+                        value: "100",
+                        label: "0.01% (100)",
+                        hint: "Ultra-low fee for blue-chip pairs.",
+                      },
+                      {
+                        value: "500",
+                        label: "0.05% (500)",
+                        hint: "Low volatility or deep-liquidity pairs.",
+                      },
+                      {
+                        value: "2500",
+                        label: "0.25% (2500)",
+                        hint: "Balanced option for most new launches.",
+                      },
+                      {
+                        value: "10000",
+                        label: "1% (10000)",
+                        hint: "High volatility or thin-liquidity assets.",
+                      },
                     ].map((tier) => (
                       <RadioGroupItem key={tier.value} value={tier.value}>
                         <div className="font-medium">{tier.label}</div>
-                        <p className="text-xs text-muted-foreground">{tier.hint}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {tier.hint}
+                        </p>
                       </RadioGroupItem>
                     ))}
                   </RadioGroup>
@@ -601,15 +727,21 @@ const { register, watch, handleSubmit, setValue, formState, trigger, reset } = f
                   type="checkbox"
                   className="size-4"
                   checked={whitelistEnabled}
-                  onChange={(event) => setValue("whitelistEnabled", event.target.checked)}
+                  onChange={(event) =>
+                    setValue("whitelistEnabled", event.target.checked)
+                  }
                 />
                 Enable whitelist (Merkle root)
               </label>
               {whitelistEnabled && (
-                <FormField label="Merkle root" error={errors.whitelistRoot?.message}>
+                <FormField
+                  label="Merkle root"
+                  error={errors.whitelistRoot?.message}
+                >
                   <Input placeholder="0x…" {...register("whitelistRoot")} />
                   <p className="text-xs text-muted-foreground">
-                    Use a standard keccak256-based Merkle tree (addresses lower-cased).
+                    Use a standard keccak256-based Merkle tree (addresses
+                    lower-cased).
                   </p>
                 </FormField>
               )}
@@ -620,7 +752,10 @@ const { register, watch, handleSubmit, setValue, formState, trigger, reset } = f
         return (
           <div className="space-y-4">
             <FormField label="Project name" error={errors.projectName?.message}>
-              <Input placeholder="Forge Fair Launch" {...register("projectName")} />
+              <Input
+                placeholder="Forge Fair Launch"
+                {...register("projectName")}
+              />
             </FormField>
             <FormField label="Description" error={errors.description?.message}>
               <Textarea
@@ -654,7 +789,8 @@ const { register, watch, handleSubmit, setValue, formState, trigger, reset } = f
             <div className="rounded-lg border p-4">
               <h3 className="font-medium">Token</h3>
               <p className="text-sm text-muted-foreground">
-                {tokenName ?? "—"} ({tokenSymbol ?? "—"}) · {tokenDecimals ?? "—"} decimals
+                {tokenName ?? "—"} ({tokenSymbol ?? "—"}) ·{" "}
+                {tokenDecimals ?? "—"} decimals
               </p>
               {tokenAddress && (
                 <a
@@ -684,11 +820,11 @@ const { register, watch, handleSubmit, setValue, formState, trigger, reset } = f
                     : `${Number(lockDurationValue) / (24 * 60 * 60)} days`
                 }
               />
-              <SummaryStat label="Soft cap" value={`${softCapValue} ${currencyMeta.symbol}`} />
               <SummaryStat
-                label="Liquidity %"
-                value={`${liquidityPercent}%`}
+                label="Soft cap"
+                value={`${softCapValue} ${currencyMeta.symbol}`}
               />
+              <SummaryStat label="Liquidity %" value={`${liquidityPercent}%`} />
             </div>
             <div className="space-y-2 rounded-lg border p-4 text-sm">
               <p>
@@ -707,7 +843,8 @@ const { register, watch, handleSubmit, setValue, formState, trigger, reset } = f
               <div className="flex flex-col gap-1">
                 <p className="text-sm font-medium">Allowance status</p>
                 <p className="text-xs text-muted-foreground">
-                  Approve the factory to transfer the total tokens required for the sale and liquidity.
+                  Approve the factory to transfer the total tokens required for
+                  the sale and liquidity.
                 </p>
               </div>
               <div className="flex items-center justify-between text-sm">
@@ -715,7 +852,9 @@ const { register, watch, handleSubmit, setValue, formState, trigger, reset } = f
                 <span
                   className={cn(
                     "font-medium",
-                    needsApproval ? "text-destructive" : "text-emerald-600 dark:text-emerald-400",
+                    needsApproval
+                      ? "text-destructive"
+                      : "text-emerald-600 dark:text-emerald-400",
                   )}
                 >
                   {needsApproval ? "Needs approval" : "Ready"}
@@ -747,8 +886,14 @@ const { register, watch, handleSubmit, setValue, formState, trigger, reset } = f
             <div className="rounded-lg border p-4 space-y-3">
               <p className="text-sm font-semibold">Checklist</p>
               <div className="space-y-2 text-sm">
-                <ChecklistItem label="Wallet connected" done={Boolean(isConnected)} />
-                <ChecklistItem label="Token verified" done={tokenQueryEnabled && Boolean(tokenDecimals)} />
+                <ChecklistItem
+                  label="Wallet connected"
+                  done={Boolean(isConnected)}
+                />
+                <ChecklistItem
+                  label="Token verified"
+                  done={tokenQueryEnabled && Boolean(tokenDecimals)}
+                />
                 <ChecklistItem
                   label="Form valid"
                   done={isValid}
@@ -795,7 +940,8 @@ const { register, watch, handleSubmit, setValue, formState, trigger, reset } = f
           <CardHeader>
             <CardTitle>Factory address missing</CardTitle>
             <CardDescription>
-              Set NEXT_PUBLIC_FAIRLAUNCH_FACTORY_{chainId} to enable this feature.
+              Set NEXT_PUBLIC_FAIRLAUNCH_FACTORY_{chainId} to enable this
+              feature.
             </CardDescription>
           </CardHeader>
         </Card>
@@ -806,7 +952,8 @@ const { register, watch, handleSubmit, setValue, formState, trigger, reset } = f
           <CardHeader>
             <CardTitle>Fair launch builder</CardTitle>
             <CardDescription>
-              Follow the steps to verify your token, configure the sale, and deploy the pool.
+              Follow the steps to verify your token, configure the sale, and
+              deploy the pool.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -815,10 +962,17 @@ const { register, watch, handleSubmit, setValue, formState, trigger, reset } = f
             <Separator />
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="text-sm text-muted-foreground">
-                Creation fee: <span className="font-medium text-foreground">{creationFeeDisplay}</span>
+                Creation fee:{" "}
+                <span className="font-medium text-foreground">
+                  {creationFeeDisplay}
+                </span>
               </div>
               <div className="flex gap-3">
-                <Button variant="secondary" onClick={handlePrev} disabled={step === 0}>
+                <Button
+                  variant="secondary"
+                  onClick={handlePrev}
+                  disabled={step === 0}
+                >
                   Back
                 </Button>
                 {canGoNext ? (

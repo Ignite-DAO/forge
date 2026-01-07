@@ -1,489 +1,404 @@
+"use client";
+
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+  Gift,
+  Rocket,
+  Sparkles,
+  TrendingUp,
+} from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { formatUnits } from "viem";
+import { usePublicClient, useReadContract } from "wagmi";
+import { useNetwork } from "@/providers/network";
+import { erc20Abi } from "@/abi/erc20";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
 import {
-  Shield,
-  Rocket,
-  Gift,
-  Coins,
-  MousePointerClick,
-  Sparkles,
-  Clock,
-  Megaphone,
-  Lock,
-  Wallet,
-  Bot,
-  ExternalLink,
-  CheckCircle2,
-} from "lucide-react";
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  abis,
+  getBondingCurveFactoryAddress,
+} from "@/lib/contracts";
+
+type TokenMetadata = {
+  pool_address: string;
+  image_url: string | null;
+  description: string | null;
+  website: string | null;
+  twitter: string | null;
+  telegram: string | null;
+};
+
+type BondingCurveSummary = {
+  pool: `0x${string}`;
+  token: `0x${string}`;
+  tokenSymbol: string;
+  tokenName: string;
+  currentPrice: bigint;
+  marketCap: bigint;
+  progressBps: bigint;
+  state: number;
+  metadata?: TokenMetadata;
+};
+
+const bondingCurveStateLabels: Record<
+  number,
+  { label: string; variant: "default" | "secondary" }
+> = {
+  0: { label: "Trading", variant: "default" },
+  1: { label: "Graduated", variant: "secondary" },
+};
 
 export default function Home() {
+  const { chainId } = useNetwork();
+  const bondingCurveFactory = getBondingCurveFactoryAddress(chainId);
+  const publicClient = usePublicClient({ chainId });
+
+  const { data: poolCountData } = useReadContract({
+    abi: abis.forgeBondingCurveFactory,
+    address: bondingCurveFactory ?? undefined,
+    functionName: "poolCount",
+    chainId,
+    query: { enabled: Boolean(bondingCurveFactory), refetchInterval: 10000 },
+  });
+
+  const [bondingCurvePools, setBondingCurvePools] = useState<
+    BondingCurveSummary[]
+  >([]);
+  const [metadataMap, setMetadataMap] = useState<Record<string, TokenMetadata>>(
+    {},
+  );
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!chainId) return;
+    fetch(`/api/launches/metadata?chainId=${chainId}&launchType=bonding_curve`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.metadata) {
+          setMetadataMap(data.metadata);
+        }
+      })
+      .catch(() => {});
+  }, [chainId]);
+
+  useEffect(() => {
+    if (!bondingCurveFactory || !publicClient) return;
+    const factoryAddr = bondingCurveFactory as `0x${string}`;
+    const client = publicClient as NonNullable<typeof publicClient>;
+    const total = Number(poolCountData ?? 0n);
+    if (!Number.isFinite(total) || total === 0) {
+      setBondingCurvePools([]);
+      return;
+    }
+    let cancelled = false;
+    async function load() {
+      setIsLoading(true);
+      try {
+        const indexes = Array.from({ length: total }, (_, i) => BigInt(i));
+        const poolAddresses = await Promise.all(
+          indexes.map((idx) =>
+            client.readContract({
+              abi: abis.forgeBondingCurveFactory,
+              address: factoryAddr,
+              functionName: "poolAt",
+              args: [idx],
+            }),
+          ),
+        );
+        const summaries = await Promise.all(
+          poolAddresses.map(async (poolAddr) => {
+            const target = poolAddr as `0x${string}`;
+            const [token, currentPrice, marketCap, progressBps, state] =
+              await Promise.all([
+                client.readContract({
+                  abi: abis.forgeBondingCurvePool,
+                  address: target,
+                  functionName: "token",
+                }),
+                client.readContract({
+                  abi: abis.forgeBondingCurvePool,
+                  address: target,
+                  functionName: "currentPrice",
+                }),
+                client.readContract({
+                  abi: abis.forgeBondingCurvePool,
+                  address: target,
+                  functionName: "marketCap",
+                }),
+                client.readContract({
+                  abi: abis.forgeBondingCurvePool,
+                  address: target,
+                  functionName: "progressBps",
+                }),
+                client.readContract({
+                  abi: abis.forgeBondingCurvePool,
+                  address: target,
+                  functionName: "state",
+                }),
+              ]);
+
+            let tokenSymbol = "";
+            let tokenName = "";
+            try {
+              [tokenSymbol, tokenName] = await Promise.all([
+                client.readContract({
+                  abi: erc20Abi,
+                  address: token as `0x${string}`,
+                  functionName: "symbol",
+                }) as Promise<string>,
+                client.readContract({
+                  abi: erc20Abi,
+                  address: token as `0x${string}`,
+                  functionName: "name",
+                }) as Promise<string>,
+              ]);
+            } catch {
+              tokenSymbol = "TOKEN";
+              tokenName = "Unknown";
+            }
+
+            return {
+              pool: target,
+              token: token as `0x${string}`,
+              tokenSymbol,
+              tokenName,
+              currentPrice: currentPrice as bigint,
+              marketCap: marketCap as bigint,
+              progressBps: progressBps as bigint,
+              state: Number(state),
+            } satisfies BondingCurveSummary;
+          }),
+        );
+
+        if (!cancelled) {
+          setBondingCurvePools(summaries.reverse());
+        }
+      } catch {
+        if (!cancelled) {
+          setBondingCurvePools([]);
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [bondingCurveFactory, publicClient, poolCountData]);
+
+  const poolsWithMetadata = bondingCurvePools.map((pool) => ({
+    ...pool,
+    metadata: metadataMap[pool.pool.toLowerCase()],
+  }));
+
+  const tradingPools = poolsWithMetadata.filter((p) => p.state === 0);
+  const displayPools = tradingPools.slice(0, 6);
+
   return (
-    <div className="space-y-16">
+    <div className="space-y-12 pb-12">
       {/* Hero */}
-      <section className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-primary/10 via-background to-background p-10 sm:p-16">
-        <div className="relative z-10 max-w-3xl">
-          <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight">
-            Launch in clicks. Grow without limits.
+      <section className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-primary/10 via-background to-background p-8 sm:p-12">
+        <div className="relative z-10 max-w-2xl">
+          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight">
+            Launch tokens. Trade instantly.
           </h1>
-          <p className="text-base text-muted-foreground mt-4">
-            Airdrops, launches and liquidity. All instant. All on chain.
+          <p className="text-base text-muted-foreground mt-3">
+            Create bonding curve tokens, run fair launches, and distribute airdrops. All on-chain.
           </p>
-          <div className="mt-8 flex flex-wrap gap-3">
+          <div className="mt-6 flex flex-wrap gap-3">
             <Button asChild size="lg">
-              <Link
-                href="/create-token"
-                className="inline-flex items-center gap-1.5"
-              >
+              <Link href="/bonding-curve" className="inline-flex items-center gap-1.5">
                 Launch Token
                 <Rocket className="size-4" />
               </Link>
             </Button>
             <Button asChild variant="outline" size="lg">
-              <Link
-                href="/airdrop"
-                className="inline-flex items-center gap-1.5"
-              >
-                Start Airdrop
-                <Gift className="size-4" />
-              </Link>
-            </Button>
-            <Button asChild variant="secondary" size="lg">
-              <Link
-                href="/discover"
-                className="inline-flex items-center gap-1.5"
-              >
-                Browse Launches
-                <Sparkles className="size-4" />
-              </Link>
-            </Button>
-            <Button asChild variant="secondary" size="lg">
-              <Link
-                href="/fair-launch"
-                className="inline-flex items-center gap-1.5"
-              >
-                Fair Launchpad
+              <Link href="/discover" className="inline-flex items-center gap-1.5">
+                Explore All
                 <Sparkles className="size-4" />
               </Link>
             </Button>
           </div>
         </div>
         <div className="absolute -right-24 -top-24 size-72 rounded-full bg-primary/20 blur-3xl" />
-        <div className="absolute -left-24 -bottom-24 size-80 rounded-full bg-accent/30 blur-3xl" />
       </section>
 
-      {/* Quick CTA row */}
-      <section className="text-center">
-        <p className="text-sm text-muted-foreground">Your project begins here.</p>
-      </section>
+      {/* Live Launches */}
+      <section>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-semibold">Live Launches</h2>
+            {tradingPools.length > 0 && (
+              <Badge variant="default">{tradingPools.length} trading</Badge>
+            )}
+          </div>
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/discover">View all</Link>
+          </Button>
+        </div>
 
-      {/* Launch formats (preview) */}
-      <section className="rounded-2xl bg-muted/30 p-8 sm:p-12">
-        <div className="max-w-3xl">
-          <h2 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
-            <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-primary">
-              <Rocket className="size-4" />
-            </span>
-            Launch formats
-            <Badge className="ml-2" variant="outline">
-              Preview
-            </Badge>
-          </h2>
-          <p className="text-base text-muted-foreground mt-3">
-            Choose the path that fits your community and goals. Configure how you go live, including optional liquidity locks.
-          </p>
-        </div>
-        <div className="mt-8 grid gap-6 sm:grid-cols-3">
-          <div className="rounded-xl border border-border p-5">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-primary">
-                <Rocket className="size-5" />
-              </span>
-              <div className="text-base font-medium">Full launch</div>
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              Kickstart with built-in liquidity and seamless DEX integration for stronger price discovery.
-            </p>
-            <Badge className="mt-3" variant="outline">
-              Launching soon
-            </Badge>
+        {isLoading ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-48 rounded-xl" />
+            ))}
           </div>
-          <div className="rounded-xl border border-border p-5">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-primary">
-                <Sparkles className="size-5" />
-              </span>
-              <div className="text-base font-medium">Fair launch</div>
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              Open to everyone, with optional liquidity locks that build instant community trust.
-            </p>
-            <Button asChild size="sm" className="mt-4">
-              <Link href="/fair-launch" className="inline-flex items-center gap-1.5">
-                Build now
-                <Sparkles className="size-4" />
-              </Link>
-            </Button>
-          </div>
-          <div className="rounded-xl border border-border p-5">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-primary">
-                <Gift className="size-5" />
-              </span>
-              <div className="text-base font-medium">Presale</div>
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              Give early supporters exclusive access before the full launch goes live.
-            </p>
-            <Badge className="mt-3" variant="outline">
-              Launching soon
-            </Badge>
-          </div>
-        </div>
-      </section>
-
-      {/* Features and roadmap */}
-      <section className="grid gap-10 lg:grid-cols-2 lg:items-start">
-        <div>
-          <h3 className="text-xl font-semibold">Current features</h3>
-          <ul className="mt-4 space-y-3 text-base">
-            <li className="flex items-start gap-3">
-              <CheckCircle2 className="mt-0.5 size-5 text-primary" />
-              <span>Create fixed‑supply ERC‑20 tokens in minutes.</span>
-            </li>
-            <li className="flex items-start gap-3">
-              <CheckCircle2 className="mt-0.5 size-5 text-primary" />
-              <span>Run simple, secure airdrops to many recipients.</span>
-            </li>
-            <li className="flex items-start gap-3">
-              <CheckCircle2 className="mt-0.5 size-5 text-primary" />
-              <span>Clean UX with transparent on‑chain confirmations.</span>
-            </li>
-          </ul>
-        </div>
-        <div>
-          <div className="flex items-center gap-2">
-            <h3 className="text-xl font-semibold">What’s next</h3>
-            <Badge variant="secondary" className="text-[11px]">
-              Roadmap
-            </Badge>
-          </div>
-          <div className="mt-4 space-y-6">
-            <div>
-              <div className="flex items-center gap-2 text-base font-medium">
-                <Lock className="size-4 text-muted-foreground" />
-                Liquidity locks
-                <Badge className="ml-2" variant="outline">
-                  Coming soon
-                </Badge>
-              </div>
-              <p className="text-sm text-muted-foreground mt-1">
-                Lock liquidity with customizable configurations to reinforce
-                trust at launch and beyond.
+        ) : displayPools.length === 0 ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">No live launches yet</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-4">
+                Be the first to launch a token on the bonding curve!
               </p>
-            </div>
-
-            <div>
-              <div className="flex items-center gap-2 text-base font-medium">
-                <MousePointerClick className="size-4 text-muted-foreground" />
-                Flexible launch formats
-                <Badge className="ml-2" variant="outline">
-                  Coming soon
-                </Badge>
-              </div>
-              <p className="text-sm text-muted-foreground mt-1">
-                Expand beyond the basic token drop with full, fair, and presale
-                templates plus guardrails tuned for each path.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Who it’s for */}
-      <section>
-        <h2 className="text-2xl font-semibold tracking-tight">Who it’s for</h2>
-        <div className="mt-6 grid gap-6 sm:grid-cols-3">
-          <BenefitPoint icon={<Rocket className="size-5" />} title="Founders">
-            Launch without a dev team. Go from idea to token and distribution
-            fast.
-          </BenefitPoint>
-          <BenefitPoint
-            icon={<Megaphone className="size-5" />}
-            title="Marketers"
-          >
-            Treat tokens like product funnels — plan, attribute, and iterate
-            like performance campaigns.
-          </BenefitPoint>
-          <BenefitPoint icon={<Gift className="size-5" />} title="Communities">
-            Reward early supporters and run airdrops safely with transparent
-            flows.
-          </BenefitPoint>
-        </div>
-      </section>
-
-      {/* Trust & security */}
-      <section>
-        <h2 className="text-2xl font-semibold tracking-tight">
-          Trust and security
-        </h2>
-        <ul className="mt-4 grid gap-4 sm:grid-cols-2 text-sm">
-          <li className="flex items-start gap-3">
-            <CheckCircle2 className="mt-0.5 size-5 text-primary" />
-            <span>Standards‑based ERC‑20 with OpenZeppelin foundations.</span>
-          </li>
-          <li className="flex items-start gap-3">
-            <CheckCircle2 className="mt-0.5 size-5 text-primary" />
-            <span>
-              Verified sources via Sourcify for transparent deployments.
-            </span>
-          </li>
-          <li className="flex items-start gap-3">
-            <CheckCircle2 className="mt-0.5 size-5 text-primary" />
-            <span>Clear fees and on‑chain confirmations for every action.</span>
-          </li>
-          <li className="flex items-start gap-3">
-            <CheckCircle2 className="mt-0.5 size-5 text-primary" />
-            <span>Built for Zilliqa EVM with smooth wallet switching.</span>
-          </li>
-        </ul>
-      </section>
-
-      {/* How it works (spacious) */}
-      <section>
-        <h2 className="text-2xl font-semibold tracking-tight">How it works</h2>
-        <div className="mt-6 grid gap-10 md:grid-cols-3">
-          <StepCard
-            step={1}
-            icon={<Coins className="size-5" />}
-            title="Create your token"
-          >
-            Choose a name, symbol, decimals and total supply. Deploy with a
-            click — minted to your wallet.
-          </StepCard>
-          <StepCard
-            step={2}
-            icon={<MousePointerClick className="size-5" />}
-            title="Connect and confirm"
-          >
-            Connect your wallet and approve the transaction. We guide you
-            through any network switches.
-          </StepCard>
-          <StepCard
-            step={3}
-            icon={<Gift className="size-5" />}
-            title="Airdrop in clicks"
-          >
-            Paste addresses and amounts to distribute tokens securely — no
-            spreadsheets required.
-          </StepCard>
-        </div>
-      </section>
-
-      {/* Why Forge */}
-      <section>
-        <h2 className="text-2xl font-semibold tracking-tight">Why Forge</h2>
-        <div className="mt-6 grid gap-6 sm:grid-cols-3">
-          <BenefitPoint icon={<Sparkles className="size-5" />} title="Simple">
-            Create a fixed‑supply token and distribute it in minutes.
-          </BenefitPoint>
-          <BenefitPoint icon={<Shield className="size-5" />} title="Secure">
-            Designed with best practices and transparent on‑chain actions.
-          </BenefitPoint>
-          <BenefitPoint icon={<Clock className="size-5" />} title="Fast">
-            Streamlined flows that get you from idea to launch quickly.
-          </BenefitPoint>
-        </div>
-      </section>
-
-      {/* Torch Wallet */}
-      <section className="relative overflow-hidden rounded-2xl border border-border p-8 sm:p-12">
-        <div className="absolute -right-20 -top-20 size-64 rounded-full bg-primary/10 blur-3xl" />
-        <div className="relative z-10 grid gap-6 md:grid-cols-2 md:items-start">
-          <div>
-            <h3 className="text-xl font-semibold flex items-center gap-2">
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-primary">
-                <Wallet className="size-5" />
-              </span>
-              Torch Wallet — Built for Zilliqa 2.0!
-            </h3>
-            <p className="text-base text-muted-foreground mt-2 max-w-2xl">
-              Torch is the all‑in‑one platform for the Zilliqa ecosystem, now
-              rebuilt for Zilliqa 2.0 with full EVM support.
-            </p>
-            <p className="text-sm text-muted-foreground mt-3 max-w-2xl">
-              Buy ZIL, swap tokens, stake instantly, and manage both your legacy and EVM ZIL from a
-              single, mobile‑first interface.
-            </p>
-            <div className="mt-5">
-              <Button asChild size="lg" variant="outline">
-                <a
-                  href="https://torchwallet.io"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1.5"
-                >
-                  Explore Torch Wallet
-                  <ExternalLink className="size-4" />
-                </a>
+              <Button asChild size="sm">
+                <Link href="/bonding-curve">Launch now</Link>
               </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {displayPools.map((pool) => (
+              <PoolCard key={pool.pool} pool={pool} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Quick Actions */}
+      <section className="grid gap-4 sm:grid-cols-3">
+        <Link
+          href="/bonding-curve"
+          className="group rounded-xl border border-border p-5 hover:border-primary/50 hover:bg-muted/30 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+              <TrendingUp className="size-5" />
+            </span>
+            <div>
+              <div className="font-medium">Bonding Curve</div>
+              <div className="text-sm text-muted-foreground">
+                Launch with instant liquidity
+              </div>
             </div>
           </div>
-          <div>
-            <ul className="grid gap-3 text-sm">
-              <li className="flex items-start gap-3">
-                <CheckCircle2 className="mt-0.5 size-5 text-primary" />
-                <div>
-                  <div className="font-medium">Dual‑Chain Support (Legacy & EVM)</div>
-                  <div className="text-muted-foreground">Seamlessly manage ZIL on both chains in one place.</div>
-                </div>
-              </li>
-              <li className="flex items-start gap-3">
-                <CheckCircle2 className="mt-0.5 size-5 text-primary" />
-                <div>
-                  <div className="font-medium">Buy ZIL Instantly</div>
-                  <div className="text-muted-foreground">Purchase ZIL directly inside the app with your preferred payment method.</div>
-                </div>
-              </li>
-              <li className="flex items-start gap-3">
-                <CheckCircle2 className="mt-0.5 size-5 text-primary" />
-                <div>
-                  <div className="font-medium">Instant Unstaking</div>
-                  <div className="text-muted-foreground">Skip the 14‑day lockup. Unstake instantly for a small fee.</div>
-                </div>
-              </li>
-              <li className="flex items-start gap-3">
-                <CheckCircle2 className="mt-0.5 size-5 text-primary" />
-                <div>
-                  <div className="font-medium">DEX Swaps</div>
-                  <div className="text-muted-foreground">Swap tokens and set price targets directly from your wallet.</div>
-                </div>
-              </li>
-              <li className="flex items-start gap-3">
-                <CheckCircle2 className="mt-0.5 size-5 text-primary" />
-                <div>
-                  <div className="font-medium">Built for Zilliqa 2.0</div>
-                  <div className="text-muted-foreground">Full support for EVM assets, modern UX, and blazing fast performance.</div>
-                </div>
-              </li>
-            </ul>
+        </Link>
+        <Link
+          href="/fair-launch"
+          className="group rounded-xl border border-border p-5 hover:border-primary/50 hover:bg-muted/30 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+              <Sparkles className="size-5" />
+            </span>
+            <div>
+              <div className="font-medium">Fair Launch</div>
+              <div className="text-sm text-muted-foreground">
+                Equal opportunity for all
+              </div>
+            </div>
           </div>
-        </div>
-      </section>
-
-      {/* Focused CTAs */}
-      <section className="text-center">
-        <div className="inline-flex flex-wrap items-center justify-center gap-3">
-          <Button asChild size="lg">
-            <Link
-              href="/create-token"
-              className="inline-flex items-center gap-1.5"
-            >
-              Create your token
-              <Rocket className="size-4" />
-            </Link>
-          </Button>
-          <Button asChild variant="outline" size="lg">
-            <Link href="/airdrop" className="inline-flex items-center gap-1.5">
-              Run an airdrop
-              <Gift className="size-4" />
-            </Link>
-          </Button>
-        </div>
-      </section>
-
-      {/* FAQ */}
-      <section className="rounded-xl border border-border p-4 sm:p-6">
-        <h2 className="text-base font-semibold">Frequently asked questions</h2>
-        <Accordion type="single" collapsible className="mt-2">
-          <AccordionItem value="q1">
-            <AccordionTrigger>
-              Do I need any technical knowledge?
-            </AccordionTrigger>
-            <AccordionContent>
-              No — Forge guides you through creating a token and running an
-              airdrop with a friendly interface.
-            </AccordionContent>
-          </AccordionItem>
-          <AccordionItem value="q2">
-            <AccordionTrigger>
-              How long does it take to launch?
-            </AccordionTrigger>
-            <AccordionContent>
-              Usually just a few minutes. Most time is spent confirming the
-              wallet transaction.
-            </AccordionContent>
-          </AccordionItem>
-          <AccordionItem value="q3">
-            <AccordionTrigger>
-              Can I airdrop to many addresses?
-            </AccordionTrigger>
-            <AccordionContent>
-              Yes — paste a list of addresses and amounts. Forge batches these
-              securely for you.
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
+        </Link>
+        <Link
+          href="/airdrop"
+          className="group rounded-xl border border-border p-5 hover:border-primary/50 hover:bg-muted/30 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+              <Gift className="size-5" />
+            </span>
+            <div>
+              <div className="font-medium">Airdrop</div>
+              <div className="text-sm text-muted-foreground">
+                Distribute tokens easily
+              </div>
+            </div>
+          </div>
+        </Link>
       </section>
     </div>
   );
 }
 
-function BenefitPoint({
-  icon,
-  title,
-  children,
+function PoolCard({
+  pool,
 }: {
-  icon: React.ReactNode;
-  title: string;
-  children: React.ReactNode;
+  pool: BondingCurveSummary & { metadata?: TokenMetadata };
 }) {
+  const stateConfig =
+    bondingCurveStateLabels[pool.state] ?? bondingCurveStateLabels[0];
+  const progress = Number(pool.progressBps) / 100;
+  const mcapFormatted = formatUnits(pool.marketCap, 18);
+  const detailHref = `/discover/${pool.pool}`;
+
   return (
-    <div>
-      <div className="flex items-center gap-2">
-        <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-primary">
-          {icon}
-        </span>
-        <h3 className="text-base font-medium">{title}</h3>
-      </div>
-      <p className="text-sm text-muted-foreground mt-2">{children}</p>
-    </div>
+    <Card className="overflow-hidden hover:border-primary/50 transition-colors">
+      <Link href={detailHref}>
+        <CardHeader className="pb-3">
+          <div className="flex items-start gap-3">
+            {pool.metadata?.image_url ? (
+              <Image
+                src={pool.metadata.image_url}
+                alt={pool.tokenName}
+                width={40}
+                height={40}
+                className="rounded-lg object-cover shrink-0"
+              />
+            ) : (
+              <div className="size-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                <span className="text-sm font-bold text-muted-foreground">
+                  {pool.tokenSymbol.slice(0, 2)}
+                </span>
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <CardTitle className="text-sm font-semibold truncate">
+                    {pool.tokenName}
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground">
+                    {pool.tokenSymbol}
+                  </p>
+                </div>
+                <Badge variant={stateConfig.variant} className="text-[10px] shrink-0">
+                  {stateConfig.label}
+                </Badge>
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">Progress</span>
+              <span className="font-medium">{progress.toFixed(1)}%</span>
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full bg-primary transition-all duration-300"
+                style={{ width: `${Math.min(progress, 100)}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-xs pt-1">
+              <span className="text-muted-foreground">Market cap</span>
+              <span className="font-medium">
+                {Number(mcapFormatted).toLocaleString()} ZIL
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Link>
+    </Card>
   );
 }
-
-function StepCard({
-  step,
-  icon,
-  title,
-  children,
-}: {
-  step: number;
-  icon: React.ReactNode;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-xl border border-border p-6">
-      <div className="flex items-center gap-3">
-        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-semibold">
-          {step}
-        </span>
-        <div className="flex items-center gap-2">
-          <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-primary">
-            {icon}
-          </span>
-          <h3 className="text-base font-medium">{title}</h3>
-        </div>
-      </div>
-      <p className="text-sm text-muted-foreground mt-2">{children}</p>
-    </div>
-  );
-}
-
-//

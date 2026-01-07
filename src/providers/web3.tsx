@@ -1,9 +1,9 @@
 "use client";
 
-import { ReactNode, useMemo } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { getDefaultConfig, RainbowKitProvider } from "@rainbow-me/rainbowkit";
-import { WagmiProvider, http } from "wagmi";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { type ReactNode, useMemo } from "react";
+import { http, WagmiProvider } from "wagmi";
 import { chains, zilliqa, zilliqaTestnet } from "@/lib/chains";
 
 const projectId =
@@ -26,7 +26,7 @@ export function Web3Providers({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <WagmiProvider config={wagmiConfig}>
-        <RainbowKitProvider initialChain={zilliqaTestnet}>
+        <RainbowKitProvider initialChain={zilliqa}>
           {children}
         </RainbowKitProvider>
       </WagmiProvider>

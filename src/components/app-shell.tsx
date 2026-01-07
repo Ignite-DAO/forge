@@ -1,7 +1,7 @@
 "use client";
 
-import { Topbar } from "@/components/topbar";
 import { SidebarLayout } from "@/components/nav-sidebar";
+import { Topbar } from "@/components/topbar";
 import { SidebarInset } from "@/components/ui/sidebar";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {

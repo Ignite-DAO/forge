@@ -1,5 +1,22 @@
 "use client";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Loader2 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { parseUnits } from "viem";
+import {
+  useAccount,
+  useReadContract,
+  useWaitForTransactionReceipt,
+  useWriteContract,
+} from "wagmi";
+import { useNetwork } from "@/providers/network";
+import { z } from "zod";
+import { erc20Abi } from "@/abi/erc20";
+import { PageHeader } from "@/components/page-header";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -7,10 +24,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -19,24 +34,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  useAccount,
-  useChainId,
-  useReadContract,
-  useWaitForTransactionReceipt,
-  useWriteContract,
-} from "wagmi";
+import { Textarea } from "@/components/ui/textarea";
 import { abis, getAirdropperAddress } from "@/lib/contracts";
-import { erc20Abi } from "@/abi/erc20";
-import { parseUnits } from "viem";
-import { toast } from "sonner";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { PageHeader } from "@/components/page-header";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { nf, tryFormatUnits } from "@/lib/format";
-import { Loader2 } from "lucide-react";
 
 type Row = { address: string; amount: string };
 
@@ -62,7 +62,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export default function AirdropPage() {
-  const chainId = useChainId();
+  const { chainId } = useNetwork();
   const { address: sender } = useAccount();
   const airdropper = getAirdropperAddress(chainId);
 
@@ -82,6 +82,7 @@ export default function AirdropPage() {
     abi: erc20Abi,
     address: token as `0x${string}` | undefined,
     functionName: "decimals",
+    chainId,
     query: { enabled: /^0x[a-fA-F0-9]{40}$/.test(token) },
   });
 
@@ -98,13 +99,17 @@ export default function AirdropPage() {
     }
   }, [rows, decimals]);
 
-  const total = useMemo(() => amounts.reduce((a, b) => a + b, BigInt(0)), [amounts]);
+  const total = useMemo(
+    () => amounts.reduce((a, b) => a + b, BigInt(0)),
+    [amounts],
+  );
 
   // Airdropper fee (if any)
   const { data: dropFee } = useReadContract({
     abi: abis.forgeAirdropper,
     address: airdropper ?? undefined,
     functionName: "fee",
+    chainId,
     query: { enabled: Boolean(airdropper) },
   });
 
@@ -113,6 +118,7 @@ export default function AirdropPage() {
     address: token as `0x${string}` | undefined,
     functionName: "allowance",
     args: sender && airdropper ? [sender, airdropper] : undefined,
+    chainId,
     query: { enabled: Boolean(sender && airdropper && token) },
   });
 
@@ -141,6 +147,7 @@ export default function AirdropPage() {
       address: token as `0x${string}`,
       functionName: "approve",
       args: [airdropper, total],
+      chainId,
     });
   }
 
@@ -154,6 +161,7 @@ export default function AirdropPage() {
       args: [token as `0x${string}`, recipients as `0x${string}`[], amounts],
       value:
         dropFee && (dropFee as bigint) > 0n ? (dropFee as bigint) : undefined,
+      chainId,
     });
     toast("Airdrop submitted", {
       description: "Confirm in wallet and wait for confirmations.",
@@ -277,13 +285,17 @@ export default function AirdropPage() {
             <Button
               type="button"
               variant="outline"
-              disabled={!ready || (allowance ?? BigInt(0)) >= total || isPending}
+              disabled={
+                !ready || (allowance ?? BigInt(0)) >= total || isPending
+              }
               onClick={onApprove}
             >
               {isPending && action === "approve" && (
                 <Loader2 className="animate-spin" />
               )}
-              {isPending && action === "approve" ? "Confirm in wallet…" : "Approve"}
+              {isPending && action === "approve"
+                ? "Confirm in wallet…"
+                : "Approve"}
             </Button>
             <Button
               type="button"
@@ -293,7 +305,9 @@ export default function AirdropPage() {
               {isPending && action === "airdrop" && (
                 <Loader2 className="animate-spin" />
               )}
-              {isPending && action === "airdrop" ? "Confirm in wallet…" : "Run Airdrop"}
+              {isPending && action === "airdrop"
+                ? "Confirm in wallet…"
+                : "Run Airdrop"}
             </Button>
           </div>
 

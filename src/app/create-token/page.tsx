@@ -1,20 +1,29 @@
 "use client";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  CheckCircle2,
+  Copy,
+  ExternalLink,
+  Loader2,
+  Wallet,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { parseEventLogs, parseUnits } from "viem";
 import {
   useAccount,
-  useChainId,
   usePublicClient,
   useReadContract,
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
-import { parseUnits } from "viem";
-import { abis, getFactoryAddress } from "@/lib/contracts";
-import { addressUrl, txUrl } from "@/lib/explorer";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { useNetwork } from "@/providers/network";
+import { z } from "zod";
+import { PageHeader } from "@/components/page-header";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -23,20 +32,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { toast } from "sonner";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { PageHeader } from "@/components/page-header";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { abis, getFactoryAddress } from "@/lib/contracts";
+import { addressUrl, txUrl } from "@/lib/explorer";
 import { nf, tryFormatUnits } from "@/lib/format";
-import { parseEventLogs } from "viem";
-import { CheckCircle2, Copy, ExternalLink, Wallet } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 
 export default function CreateTokenPage() {
   const { address, isConnected } = useAccount();
-  const chainId = useChainId();
+  const { chainId } = useNetwork();
   const factory = getFactoryAddress(chainId);
 
   const schema = z.object({
@@ -68,13 +72,14 @@ export default function CreateTokenPage() {
     abi: abis.forgeTokenFactory,
     address: factory ?? undefined,
     functionName: "fee",
+    chainId,
     query: { enabled: Boolean(factory) },
   });
 
   const { writeContract, data: hash, isPending } = useWriteContract();
   const { isLoading: isConfirming, isSuccess: isConfirmed } =
     useWaitForTransactionReceipt({ hash });
-  const publicClient = usePublicClient();
+  const publicClient = usePublicClient({ chainId });
 
   const canSubmit = isConnected && !!factory && isValid;
 
@@ -198,6 +203,7 @@ export default function CreateTokenPage() {
         supply,
       ],
       value: fee && (fee as bigint) > 0n ? (fee as bigint) : undefined,
+      chainId,
     });
     toast("Transaction submitted", {
       description: "Confirm in your wallet and wait for confirmations.",
@@ -364,7 +370,7 @@ export default function CreateTokenPage() {
                     navigator.clipboard.writeText(created.token).then(() =>
                       toast.success("Address copied", {
                         description: created.token,
-                      })
+                      }),
                     );
                   }}
                 >
@@ -400,7 +406,7 @@ export default function CreateTokenPage() {
                     navigator.clipboard.writeText(created.creator).then(() =>
                       toast.success("Address copied", {
                         description: created.creator,
-                      })
+                      }),
                     );
                   }}
                 >

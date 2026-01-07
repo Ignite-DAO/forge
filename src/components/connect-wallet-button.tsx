@@ -1,8 +1,8 @@
 "use client";
 
 import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { AlertTriangle, ChevronDown, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Wallet, AlertTriangle, ChevronDown } from "lucide-react";
 
 export function ConnectWalletButton() {
   return (

@@ -1,28 +1,28 @@
 "use client";
 
+import { Compass, Gift, Home, Rocket, Sparkles } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { SidebarResizeHandle } from "@/components/sidebar-resize-handle";
 import {
-  Sidebar as UiSidebar,
   SidebarContent,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
-  SidebarSeparator,
   SidebarRail,
+  SidebarSeparator,
+  Sidebar as UiSidebar,
 } from "@/components/ui/sidebar";
-import { SidebarResizeHandle } from "@/components/sidebar-resize-handle";
-import { Compass, Gift, Home, Rocket, Sparkles } from "lucide-react";
 
 const items = [
   { href: "/", label: "Dashboard", icon: Home },
   { href: "/create-token", label: "Create Token", icon: Sparkles },
   { href: "/airdrop", label: "Airdrop", icon: Gift },
   { href: "/bonding-curve", label: "Launch", icon: Rocket },
-  { href: "/fair-launch", label: "Launch Builder", icon: Compass },
+  { href: "/fair-launch", label: "Fair Launch", icon: Compass },
   { href: "/discover", label: "Launches", icon: Sparkles },
 ] as const;
 

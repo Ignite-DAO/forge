@@ -1,7 +1,8 @@
 "use client";
-import { SidebarTrigger } from "@/components/ui/sidebar";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { ConnectWalletButton } from "@/components/connect-wallet-button";
+import { NetworkSelector } from "@/components/network-selector";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 
 export function Topbar({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
   return (
@@ -22,6 +23,7 @@ export function Topbar({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
       </div>
       <div className="flex items-center gap-1.5">
         <ThemeToggle />
+        <NetworkSelector />
         <ConnectWalletButton />
       </div>
     </header>

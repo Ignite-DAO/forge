@@ -10,13 +10,13 @@ Linear bonding curve implementation for fair token launches. Tokens are sold alo
 
 ### Tokenomics
 
-| Parameter | Value |
-|-----------|-------|
-| Total Supply | 1,000,000,000 tokens |
-| Tokens for Curve | 800,000,000 (80%) |
-| Tokens for Liquidity | 200,000,000 (20%) |
-| Base Price | 0.000000001 ZIL |
-| Slope | 0.00001 ZIL per 1e18 tokens |
+| Parameter            | Value                       |
+| -------------------- | --------------------------- |
+| Total Supply         | 1,000,000,000 tokens        |
+| Tokens for Curve     | 800,000,000 (80%)           |
+| Tokens for Liquidity | 200,000,000 (20%)           |
+| Base Price           | 0.000000001 ZIL             |
+| Slope                | 0.00001 ZIL per 1e18 tokens |
 
 Cost to fill entire curve: ~3,450 ZIL
 
@@ -41,14 +41,14 @@ forge script script/DeployBondingCurveFactory.s.sol \
 
 ### Constructor Parameters
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `TREASURY_ADDRESS` | Address receiving fees | Required |
-| `WRAPPED_NATIVE` | WZIL address | Required |
-| `PLUNDER_V3_NFPM` | Plunder V3 NonfungiblePositionManager | `0x17678B52997B89b179c0a471bF8d266A4A4c6AC5` |
-| `GRADUATION_MARKET_CAP` | Market cap threshold for graduation (wei) | 4,200,000 ZIL |
-| `TRADING_FEE_PERCENT` | Fee in basis points (100 = 1%) | 100 (1%) |
-| `DEFAULT_V3_FEE` | Plunder V3 pool fee tier | 10000 (1%) |
+| Parameter               | Description                               | Default                                      |
+| ----------------------- | ----------------------------------------- | -------------------------------------------- |
+| `TREASURY_ADDRESS`      | Address receiving fees                    | Required                                     |
+| `WRAPPED_NATIVE`        | WZIL address                              | Required                                     |
+| `PLUNDER_V3_NFPM`       | Plunder V3 NonfungiblePositionManager     | `0x17678B52997B89b179c0a471bF8d266A4A4c6AC5` |
+| `GRADUATION_MARKET_CAP` | Market cap threshold for graduation (wei) | 4,200,000 ZIL                                |
+| `TRADING_FEE_PERCENT`   | Fee in basis points (100 = 1%)            | 100 (1%)                                     |
+| `DEFAULT_V3_FEE`        | Plunder V3 pool fee tier                  | 10000 (1%)                                   |
 
 ## Updating Factory Parameters
 
