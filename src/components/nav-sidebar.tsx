@@ -7,6 +7,9 @@ import { usePathname } from "next/navigation";
 import { SidebarResizeHandle } from "@/components/sidebar-resize-handle";
 import {
   SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -17,35 +20,49 @@ import {
   Sidebar as UiSidebar,
 } from "@/components/ui/sidebar";
 
-const items = [
+const generalItems = [
   { href: "/", label: "Dashboard", icon: Home },
+  { href: "/bonding-curve", label: "Launch", icon: Rocket },
+] as const;
+
+const toolItems = [
   { href: "/create-token", label: "Create Token", icon: Sparkles },
   { href: "/airdrop", label: "Airdrop", icon: Gift },
-  { href: "/bonding-curve", label: "Launch", icon: Rocket },
   { href: "/fair-launch", label: "Fair Launch", icon: Compass },
-  { href: "/discover", label: "Launches", icon: Sparkles },
 ] as const;
 
 function SidebarButtons() {
   const pathname = usePathname();
-  // We could use useSidebar() to conditionally wrap in Tooltip when collapsed,
-  // but rendering the buttons is sufficient and avoids context issues.
+
+  const renderItems = (items: typeof generalItems | typeof toolItems) =>
+    items.map((item) => {
+      const Icon = item.icon;
+      return (
+        <SidebarMenuItem key={item.href}>
+          <SidebarMenuButton asChild isActive={pathname === item.href}>
+            <Link href={item.href}>
+              <Icon className="size-4" />
+              <span>{item.label}</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      );
+    });
+
   return (
-    <SidebarMenu>
-      {items.map((item) => {
-        const Icon = item.icon;
-        return (
-          <SidebarMenuItem key={item.href}>
-            <SidebarMenuButton asChild isActive={pathname === item.href}>
-              <Link href={item.href}>
-                <Icon className="size-4" />
-                <span>{item.label}</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        );
-      })}
-    </SidebarMenu>
+    <>
+      <SidebarGroup>
+        <SidebarGroupContent>
+          <SidebarMenu>{renderItems(generalItems)}</SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+      <SidebarGroup>
+        <SidebarGroupLabel>Tools</SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu>{renderItems(toolItems)}</SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    </>
   );
 }
 
