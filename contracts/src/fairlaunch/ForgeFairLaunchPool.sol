@@ -16,8 +16,8 @@ contract ForgeFairLaunchPool is ReentrancyGuard {
     using Address for address payable;
 
     uint256 private constant PERCENT_BASE = 100;
-    int24 private constant FULL_RANGE_MIN = -887220;
-    int24 private constant FULL_RANGE_MAX = 887220;
+    int24 private constant MAX_TICK = 887272;
+    int24 private constant MIN_TICK = -887272;
 
     error NotCreator();
     error InvalidParam();
@@ -464,12 +464,28 @@ contract ForgeFairLaunchPool is ReentrancyGuard {
         token.forceApprove(positionManager, liquidityTokens);
 
         bool saleIsToken0 = address(token) < currencyToken;
+
+        // Create and initialize the V3 pool with the appropriate price
+        uint160 sqrtPriceX96 = _calculateSqrtPriceX96(
+            saleIsToken0 ? liquidityTokens : liquidityCurrency,
+            saleIsToken0 ? liquidityCurrency : liquidityTokens
+        );
+        INonfungiblePositionManager(positionManager).createAndInitializePoolIfNecessary(
+            saleIsToken0 ? address(token) : currencyToken,
+            saleIsToken0 ? currencyToken : address(token),
+            v3Fee,
+            sqrtPriceX96
+        );
+
+        // Calculate valid tick bounds for the fee tier
+        (int24 tickLower, int24 tickUpper) = _getFullRangeTicks(v3Fee);
+
         INonfungiblePositionManager.MintParams memory params = INonfungiblePositionManager.MintParams({
             token0: saleIsToken0 ? address(token) : currencyToken,
             token1: saleIsToken0 ? currencyToken : address(token),
             fee: v3Fee,
-            tickLower: FULL_RANGE_MIN,
-            tickUpper: FULL_RANGE_MAX,
+            tickLower: tickLower,
+            tickUpper: tickUpper,
             amount0Desired: saleIsToken0 ? liquidityTokens : liquidityCurrency,
             amount1Desired: saleIsToken0 ? liquidityCurrency : liquidityTokens,
             amount0Min: saleIsToken0 ? minTokenLiquidity : minCurrencyLiquidity,
@@ -487,5 +503,41 @@ contract ForgeFairLaunchPool is ReentrancyGuard {
         } else {
             IERC20(wrappedNative).forceApprove(positionManager, 0);
         }
+    }
+
+    function _sqrt(uint256 x) internal pure returns (uint256 y) {
+        if (x == 0) return 0;
+        uint256 z = (x + 1) / 2;
+        y = x;
+        while (z < y) {
+            y = z;
+            z = (x / z + z) / 2;
+        }
+    }
+
+    function _calculateSqrtPriceX96(uint256 amount0, uint256 amount1) internal pure returns (uint160) {
+        // sqrtPriceX96 = sqrt(amount1/amount0) * 2^96
+        // = sqrt(amount1) * 2^96 / sqrt(amount0)
+        uint256 sqrtAmount1 = _sqrt(amount1);
+        uint256 sqrtAmount0 = _sqrt(amount0);
+        if (sqrtAmount0 == 0) return type(uint160).max;
+        return uint160((sqrtAmount1 << 96) / sqrtAmount0);
+    }
+
+    function _getFullRangeTicks(uint24 fee) internal pure returns (int24 tickLower, int24 tickUpper) {
+        int24 tickSpacing = _getTickSpacing(fee);
+        // Round MIN_TICK up (toward zero) to nearest valid tick
+        tickLower = (MIN_TICK / tickSpacing) * tickSpacing;
+        // Round MAX_TICK down (toward zero) to nearest valid tick
+        tickUpper = (MAX_TICK / tickSpacing) * tickSpacing;
+    }
+
+    function _getTickSpacing(uint24 fee) internal pure returns (int24) {
+        // PlunderSwap fee tiers: 0.01%, 0.05%, 0.25%, 1%
+        if (fee == 100) return 1;
+        if (fee == 500) return 10;
+        if (fee == 2500) return 50;
+        if (fee == 10000) return 200;
+        revert("Invalid fee");
     }
 }

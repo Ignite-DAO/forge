@@ -21,8 +21,8 @@ contract ForgeBondingCurvePool is ReentrancyGuard {
     uint256 public constant MIN_BUY_AMOUNT = 0.001 ether;
     uint256 public constant MIN_SELL_TOKENS = 1e15;
     uint256 public constant MIN_GRADUATION_LIQUIDITY = 0.1 ether;
-    int24 private constant FULL_RANGE_MIN = -887220;
-    int24 private constant FULL_RANGE_MAX = 887220;
+    int24 private constant MAX_TICK = 887272;
+    int24 private constant MIN_TICK = -887272;
 
     // Curve parameters - tuned for ~3450 ZIL to fill entire curve (~$69k at $0.02/ZIL)
     // Linear curve: price = BASE_PRICE + SLOPE * tokensSold / 1e18
@@ -273,38 +273,48 @@ contract ForgeBondingCurvePool is ReentrancyGuard {
         uint256 totalZil = zilReserve;
         uint256 graduationFee = (totalZil * graduationFeePercent) / FEE_DENOMINATOR;
         uint256 liquidityZil = totalZil - graduationFee;
-        uint256 liquidityTokens = TOKENS_FOR_LIQUIDITY;
 
         // Ensure minimum liquidity for meaningful V3 pool
         if (liquidityZil < MIN_GRADUATION_LIQUIDITY) revert InsufficientLiquidity();
 
-        // Wrap ZIL to WZIL and verify deposit succeeded
-        uint256 wzilBalanceBefore = IERC20(wrappedNative).balanceOf(address(this));
+        // Wrap ZIL to WZIL
         IWETH9(wrappedNative).deposit{value: liquidityZil}();
-        uint256 wzilBalanceAfter = IERC20(wrappedNative).balanceOf(address(this));
-        if (wzilBalanceAfter - wzilBalanceBefore < liquidityZil) revert TransferFailed();
 
         IERC20(wrappedNative).forceApprove(positionManager, liquidityZil);
-        token.forceApprove(positionManager, liquidityTokens);
+        token.forceApprove(positionManager, TOKENS_FOR_LIQUIDITY);
 
         // Determine token ordering for V3
         bool tokenIsToken0 = address(token) < wrappedNative;
 
-        INonfungiblePositionManager.MintParams memory params = INonfungiblePositionManager.MintParams({
-            token0: tokenIsToken0 ? address(token) : wrappedNative,
-            token1: tokenIsToken0 ? wrappedNative : address(token),
-            fee: v3Fee,
-            tickLower: FULL_RANGE_MIN,
-            tickUpper: FULL_RANGE_MAX,
-            amount0Desired: tokenIsToken0 ? liquidityTokens : liquidityZil,
-            amount1Desired: tokenIsToken0 ? liquidityZil : liquidityTokens,
-            amount0Min: 0,
-            amount1Min: 0,
-            recipient: address(this),
-            deadline: block.timestamp + 900
-        });
+        // Create and initialize the V3 pool with the appropriate price
+        INonfungiblePositionManager(positionManager).createAndInitializePoolIfNecessary(
+            tokenIsToken0 ? address(token) : wrappedNative,
+            tokenIsToken0 ? wrappedNative : address(token),
+            v3Fee,
+            _calculateSqrtPriceX96(
+                tokenIsToken0 ? TOKENS_FOR_LIQUIDITY : liquidityZil,
+                tokenIsToken0 ? liquidityZil : TOKENS_FOR_LIQUIDITY
+            )
+        );
 
-        (uint256 tokenId, uint128 liquidity,,) = INonfungiblePositionManager(positionManager).mint(params);
+        // Calculate valid tick bounds for the fee tier
+        (int24 tickLower, int24 tickUpper) = _getFullRangeTicks(v3Fee);
+
+        (uint256 tokenId, uint128 liquidity,,) = INonfungiblePositionManager(positionManager).mint(
+            INonfungiblePositionManager.MintParams({
+                token0: tokenIsToken0 ? address(token) : wrappedNative,
+                token1: tokenIsToken0 ? wrappedNative : address(token),
+                fee: v3Fee,
+                tickLower: tickLower,
+                tickUpper: tickUpper,
+                amount0Desired: tokenIsToken0 ? TOKENS_FOR_LIQUIDITY : liquidityZil,
+                amount1Desired: tokenIsToken0 ? liquidityZil : TOKENS_FOR_LIQUIDITY,
+                amount0Min: 0,
+                amount1Min: 0,
+                recipient: address(this),
+                deadline: block.timestamp + 900
+            })
+        );
 
         // Verify LP creation succeeded
         if (tokenId == 0 || liquidity == 0) revert LiquidityCreationFailed();
@@ -329,7 +339,7 @@ contract ForgeBondingCurvePool is ReentrancyGuard {
             payable(treasury).sendValue(graduationFee);
         }
 
-        emit Graduated(totalZil, liquidityZil, liquidityTokens, tokenId, graduationFee);
+        emit Graduated(totalZil, liquidityZil, TOKENS_FOR_LIQUIDITY, tokenId, graduationFee);
     }
 
     function _sqrt(uint256 x) internal pure returns (uint256 y) {
@@ -340,6 +350,32 @@ contract ForgeBondingCurvePool is ReentrancyGuard {
             y = z;
             z = (x / z + z) / 2;
         }
+    }
+
+    function _calculateSqrtPriceX96(uint256 amount0, uint256 amount1) internal pure returns (uint160) {
+        // sqrtPriceX96 = sqrt(amount1/amount0) * 2^96
+        // = sqrt(amount1) * 2^96 / sqrt(amount0)
+        uint256 sqrtAmount1 = _sqrt(amount1);
+        uint256 sqrtAmount0 = _sqrt(amount0);
+        if (sqrtAmount0 == 0) return type(uint160).max;
+        return uint160((sqrtAmount1 << 96) / sqrtAmount0);
+    }
+
+    function _getFullRangeTicks(uint24 fee) internal pure returns (int24 tickLower, int24 tickUpper) {
+        int24 tickSpacing = _getTickSpacing(fee);
+        // Round MIN_TICK up (toward zero) to nearest valid tick
+        tickLower = (MIN_TICK / tickSpacing) * tickSpacing;
+        // Round MAX_TICK down (toward zero) to nearest valid tick
+        tickUpper = (MAX_TICK / tickSpacing) * tickSpacing;
+    }
+
+    function _getTickSpacing(uint24 fee) internal pure returns (int24) {
+        // PlunderSwap fee tiers: 0.01%, 0.05%, 0.25%, 1%
+        if (fee == 100) return 1;
+        if (fee == 500) return 10;
+        if (fee == 2500) return 50;
+        if (fee == 10000) return 200;
+        revert("Invalid fee");
     }
 
     receive() external payable {

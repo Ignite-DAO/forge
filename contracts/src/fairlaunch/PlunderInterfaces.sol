@@ -52,6 +52,11 @@ interface INonfungiblePositionManager {
         uint256 deadline;
     }
 
+    function createAndInitializePoolIfNecessary(address token0, address token1, uint24 fee, uint160 sqrtPriceX96)
+        external
+        payable
+        returns (address pool);
+
     function mint(MintParams calldata params)
         external
         payable
