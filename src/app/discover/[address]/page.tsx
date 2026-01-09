@@ -2,6 +2,7 @@
 
 import {
   ArrowLeft,
+  Copy,
   ExternalLink,
   Globe,
   Loader2,
@@ -638,14 +639,40 @@ export default function BondingCurvePoolPage() {
                   <CardHeader>
                     <CardTitle>Graduated</CardTitle>
                     <CardDescription>
-                      This token has graduated to Uniswap V3
+                      This token has graduated to PlunderSwap
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="space-y-4">
                     <p className="text-sm text-muted-foreground">
-                      Trading is now available on Uniswap V3. The bonding curve
+                      Trading is now available on PlunderSwap. The bonding curve
                       has completed.
                     </p>
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <span className="text-muted-foreground">Token</span>
+                      <button
+                        type="button"
+                        className="flex items-center gap-1.5 font-medium hover:text-primary transition-colors"
+                        onClick={() => {
+                          navigator.clipboard.writeText(pool.token);
+                          toast.success("Address copied", {
+                            description: pool.token,
+                          });
+                        }}
+                      >
+                        {formatAddress(pool.token)}
+                        <Copy className="size-3.5" />
+                      </button>
+                    </div>
+                    <Button asChild className="w-full">
+                      <a
+                        href={`https://plunderswap.com/swap?outputCurrency=${pool.token}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Trade on PlunderSwap
+                        <ExternalLink className="ml-1.5 size-3.5" />
+                      </a>
+                    </Button>
                   </CardContent>
                 </Card>
               )}

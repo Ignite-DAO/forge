@@ -283,7 +283,7 @@ export default function BondingCurveLaunchPage() {
           <CardTitle>Launch a token</CardTitle>
           <CardDescription>
             Create a new token with an instant bonding curve. Graduates to
-            Uniswap V3 at target market cap.
+            PlunderSwap at target market cap.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
