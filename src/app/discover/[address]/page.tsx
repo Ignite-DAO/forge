@@ -60,6 +60,10 @@ const stateLabels: Record<
 
 const REFETCH_INTERVAL = 10000;
 
+// Contract minimum amounts
+const MIN_BUY_AMOUNT = 0.001; // 0.001 ZIL
+const MIN_SELL_TOKENS = 0.001; // 0.001 tokens (1e15 wei)
+
 export default function BondingCurvePoolPage() {
   const params = useParams<{ address: string }>();
   const poolAddress = params?.address?.toLowerCase() as
@@ -239,6 +243,13 @@ export default function BondingCurvePoolPage() {
       toast.error("Connect your wallet");
       return;
     }
+    const buyAmountNum = parseFloat(buyAmount);
+    if (buyAmountNum < MIN_BUY_AMOUNT) {
+      toast.error("Amount too small", {
+        description: `Minimum buy is ${MIN_BUY_AMOUNT} ZIL`,
+      });
+      return;
+    }
     try {
       const minTokensOut = (buyQuote.tokensOut * 99n) / 100n;
       const tx = await writeContractAsync({
@@ -283,6 +294,13 @@ export default function BondingCurvePoolPage() {
     if (!poolAddress || !sellAmount || !sellQuote) return;
     if (!isConnected || !address) {
       toast.error("Connect your wallet");
+      return;
+    }
+    const sellAmountNum = parseFloat(sellAmount);
+    if (sellAmountNum < MIN_SELL_TOKENS) {
+      toast.error("Amount too small", {
+        description: `Minimum sell is ${MIN_SELL_TOKENS} tokens`,
+      });
       return;
     }
     try {
@@ -487,8 +505,11 @@ export default function BondingCurvePoolPage() {
                                 e.target.value.replace(/[^0-9.]/g, ""),
                               )
                             }
-                            placeholder="0.0"
+                            placeholder={`Min ${MIN_BUY_AMOUNT} ZIL`}
                           />
+                          <p className="text-xs text-muted-foreground">
+                            Minimum: {MIN_BUY_AMOUNT} ZIL
+                          </p>
                         </div>
                         {buyQuote && (
                           <div className="rounded-lg border bg-muted/40 p-3 text-sm space-y-1">
@@ -553,8 +574,11 @@ export default function BondingCurvePoolPage() {
                                 e.target.value.replace(/[^0-9.]/g, ""),
                               )
                             }
-                            placeholder="0.0"
+                            placeholder={`Min ${MIN_SELL_TOKENS} tokens`}
                           />
+                          <p className="text-xs text-muted-foreground">
+                            Minimum: {MIN_SELL_TOKENS} tokens
+                          </p>
                         </div>
                         {sellQuote && (
                           <div className="rounded-lg border bg-muted/40 p-3 text-sm space-y-1">

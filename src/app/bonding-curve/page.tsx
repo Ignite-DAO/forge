@@ -2,6 +2,7 @@
 
 import { Globe, Loader2, Rocket, Send, Upload, X } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { formatUnits } from "viem";
@@ -28,6 +29,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { abis, getBondingCurveFactoryAddress } from "@/lib/contracts";
 
 export default function BondingCurveLaunchPage() {
+  const router = useRouter();
   const { chainId } = useNetwork();
   const factory = getBondingCurveFactoryAddress(chainId);
   const publicClient = usePublicClient({ chainId });
@@ -180,7 +182,6 @@ export default function BondingCurveLaunchPage() {
         if (poolCreatedLog && poolCreatedLog.topics[1]) {
           poolAddress =
             `0x${poolCreatedLog.topics[1].slice(26)}` as `0x${string}`;
-          setCreatedPool(poolAddress);
         }
 
         // Upload metadata if we have any
@@ -220,6 +221,11 @@ export default function BondingCurveLaunchPage() {
         setTelegram("");
         clearImage();
         setCreateTx(null);
+
+        // Redirect to token detail page
+        if (poolAddress) {
+          router.push(`/discover/${poolAddress}`);
+        }
       });
     }
   }, [
@@ -236,6 +242,7 @@ export default function BondingCurveLaunchPage() {
     telegram,
     imageFile,
     clearImage,
+    router,
   ]);
 
   const creationFee = creationFeeData ? formatUnits(creationFeeData, 18) : "0";

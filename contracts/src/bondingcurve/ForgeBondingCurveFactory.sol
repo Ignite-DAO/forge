@@ -34,6 +34,7 @@ contract ForgeBondingCurveFactory is Ownable2Step, ReentrancyGuard {
     event TreasuryUpdated(address indexed oldTreasury, address indexed newTreasury);
     event GraduationMarketCapUpdated(uint256 oldCap, uint256 newCap);
     event TradingFeePercentUpdated(uint256 oldPercent, uint256 newPercent);
+    event GraduationFeePercentUpdated(uint256 oldPercent, uint256 newPercent);
     event DefaultV3FeeUpdated(uint24 oldFee, uint24 newFee);
     event RouterConfigUpdated(address wrappedNative, address positionManager);
 
@@ -41,6 +42,7 @@ contract ForgeBondingCurveFactory is Ownable2Step, ReentrancyGuard {
     address public treasury;
     uint256 public graduationMarketCap;
     uint256 public tradingFeePercent;
+    uint256 public graduationFeePercent;
     uint24 public defaultV3Fee;
     BondingCurveRouterConfig public routerConfig;
 
@@ -50,6 +52,7 @@ contract ForgeBondingCurveFactory is Ownable2Step, ReentrancyGuard {
         address _treasury,
         uint256 _graduationMarketCap,
         uint256 _tradingFeePercent,
+        uint256 _graduationFeePercent,
         uint24 _defaultV3Fee,
         BondingCurveRouterConfig memory _routers
     ) Ownable(msg.sender) {
@@ -57,12 +60,14 @@ contract ForgeBondingCurveFactory is Ownable2Step, ReentrancyGuard {
         if (_routers.wrappedNative == address(0)) revert InvalidParam();
         if (_routers.positionManager == address(0)) revert InvalidParam();
         if (_tradingFeePercent > 1000) revert InvalidParam(); // Max 10%
+        if (_graduationFeePercent > 1000) revert InvalidParam(); // Max 10%
         if (_defaultV3Fee == 0) revert InvalidParam();
         if (_graduationMarketCap < MIN_GRADUATION_MARKET_CAP) revert GraduationCapTooLow();
 
         treasury = _treasury;
         graduationMarketCap = _graduationMarketCap;
         tradingFeePercent = _tradingFeePercent;
+        graduationFeePercent = _graduationFeePercent;
         defaultV3Fee = _defaultV3Fee;
         routerConfig = _routers;
     }
@@ -89,6 +94,7 @@ contract ForgeBondingCurveFactory is Ownable2Step, ReentrancyGuard {
             v3Fee: defaultV3Fee,
             treasury: treasury,
             tradingFeePercent: tradingFeePercent,
+            graduationFeePercent: graduationFeePercent,
             routers: routerConfig
         });
 
@@ -136,6 +142,12 @@ contract ForgeBondingCurveFactory is Ownable2Step, ReentrancyGuard {
         if (newPercent > 1000) revert InvalidParam(); // Max 10%
         emit TradingFeePercentUpdated(tradingFeePercent, newPercent);
         tradingFeePercent = newPercent;
+    }
+
+    function setGraduationFeePercent(uint256 newPercent) external onlyOwner {
+        if (newPercent > 1000) revert InvalidParam(); // Max 10%
+        emit GraduationFeePercentUpdated(graduationFeePercent, newPercent);
+        graduationFeePercent = newPercent;
     }
 
     function setDefaultV3Fee(uint24 newFee) external onlyOwner {

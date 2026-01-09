@@ -18,6 +18,9 @@ contract ForgeBondingCurvePool is ReentrancyGuard {
     uint256 public constant TOKENS_FOR_CURVE = 800_000_000e18;
     uint256 public constant TOKENS_FOR_LIQUIDITY = 200_000_000e18;
     uint256 public constant FEE_DENOMINATOR = 10_000;
+    uint256 public constant MIN_BUY_AMOUNT = 0.001 ether;
+    uint256 public constant MIN_SELL_TOKENS = 1e15;
+    uint256 public constant MIN_GRADUATION_LIQUIDITY = 0.1 ether;
     int24 private constant FULL_RANGE_MIN = -887220;
     int24 private constant FULL_RANGE_MAX = 887220;
 
@@ -32,8 +35,11 @@ contract ForgeBondingCurvePool is ReentrancyGuard {
     error InsufficientPayment();
     error InsufficientTokens();
     error InsufficientReserve();
+    error InsufficientLiquidity();
     error ZeroAmount();
+    error BelowMinimum();
     error TransferFailed();
+    error LiquidityCreationFailed();
     error OnlyTreasury();
 
     event Buy(
@@ -56,7 +62,8 @@ contract ForgeBondingCurvePool is ReentrancyGuard {
         uint256 totalZilRaised,
         uint256 liquidityZil,
         uint256 liquidityTokens,
-        uint256 lpTokenId
+        uint256 lpTokenId,
+        uint256 graduationFee
     );
     event FeesWithdrawn(address indexed to, uint256 amount);
 
@@ -67,6 +74,7 @@ contract ForgeBondingCurvePool is ReentrancyGuard {
     uint24 public immutable v3Fee;
     address public immutable treasury;
     uint256 public immutable tradingFeePercent;
+    uint256 public immutable graduationFeePercent;
     address public immutable wrappedNative;
     address public immutable positionManager;
 
@@ -83,6 +91,7 @@ contract ForgeBondingCurvePool is ReentrancyGuard {
         v3Fee = params.v3Fee;
         treasury = params.treasury;
         tradingFeePercent = params.tradingFeePercent;
+        graduationFeePercent = params.graduationFeePercent;
         wrappedNative = params.routers.wrappedNative;
         positionManager = params.routers.positionManager;
 
@@ -98,6 +107,7 @@ contract ForgeBondingCurvePool is ReentrancyGuard {
     function buy(uint256 minTokensOut) external payable nonReentrant returns (uint256 tokensOut) {
         if (state != PoolState.Trading) revert NotTrading();
         if (msg.value == 0) revert ZeroAmount();
+        if (msg.value < MIN_BUY_AMOUNT) revert BelowMinimum();
 
         uint256 fee = (msg.value * tradingFeePercent) / FEE_DENOMINATOR;
         uint256 zilAfterFee = msg.value - fee;
@@ -134,21 +144,23 @@ contract ForgeBondingCurvePool is ReentrancyGuard {
     function sell(uint256 tokensIn, uint256 minZilOut) external nonReentrant returns (uint256 zilOut) {
         if (state != PoolState.Trading) revert NotTrading();
         if (tokensIn == 0) revert ZeroAmount();
+        if (tokensIn < MIN_SELL_TOKENS) revert BelowMinimum();
         if (tokensIn > tokensSold) revert InsufficientTokens();
-
-        token.safeTransferFrom(msg.sender, address(this), tokensIn);
 
         uint256 grossProceeds = _calculateSell(tokensIn);
         uint256 fee = (grossProceeds * tradingFeePercent) / FEE_DENOMINATOR;
         zilOut = grossProceeds - fee;
 
         if (zilOut < minZilOut) revert SlippageExceeded();
-        if (zilOut > zilReserve) revert InsufficientReserve();
+        if (grossProceeds > zilReserve) revert InsufficientReserve();
 
+        // Update state before external calls (CEI pattern)
         tokensSold -= tokensIn;
         zilReserve -= grossProceeds;
         feesCollected += fee;
 
+        // External calls after state updates
+        token.safeTransferFrom(msg.sender, address(this), tokensIn);
         payable(msg.sender).sendValue(zilOut);
 
         emit Sell(msg.sender, tokensIn, zilOut, fee, tokensSold, currentPrice());
@@ -258,11 +270,20 @@ contract ForgeBondingCurvePool is ReentrancyGuard {
     function _graduate() internal {
         state = PoolState.Graduated;
 
-        uint256 liquidityZil = zilReserve;
+        uint256 totalZil = zilReserve;
+        uint256 graduationFee = (totalZil * graduationFeePercent) / FEE_DENOMINATOR;
+        uint256 liquidityZil = totalZil - graduationFee;
         uint256 liquidityTokens = TOKENS_FOR_LIQUIDITY;
 
-        // Wrap ZIL to WZIL
+        // Ensure minimum liquidity for meaningful V3 pool
+        if (liquidityZil < MIN_GRADUATION_LIQUIDITY) revert InsufficientLiquidity();
+
+        // Wrap ZIL to WZIL and verify deposit succeeded
+        uint256 wzilBalanceBefore = IERC20(wrappedNative).balanceOf(address(this));
         IWETH9(wrappedNative).deposit{value: liquidityZil}();
+        uint256 wzilBalanceAfter = IERC20(wrappedNative).balanceOf(address(this));
+        if (wzilBalanceAfter - wzilBalanceBefore < liquidityZil) revert TransferFailed();
+
         IERC20(wrappedNative).forceApprove(positionManager, liquidityZil);
         token.forceApprove(positionManager, liquidityTokens);
 
@@ -283,7 +304,10 @@ contract ForgeBondingCurvePool is ReentrancyGuard {
             deadline: block.timestamp + 900
         });
 
-        (uint256 tokenId,,,) = INonfungiblePositionManager(positionManager).mint(params);
+        (uint256 tokenId, uint128 liquidity,,) = INonfungiblePositionManager(positionManager).mint(params);
+
+        // Verify LP creation succeeded
+        if (tokenId == 0 || liquidity == 0) revert LiquidityCreationFailed();
         lpTokenIdV3 = tokenId;
 
         // Clear approvals
@@ -300,7 +324,12 @@ contract ForgeBondingCurvePool is ReentrancyGuard {
         // Reset reserve since it's now in LP
         zilReserve = 0;
 
-        emit Graduated(liquidityZil, liquidityZil, liquidityTokens, tokenId);
+        // Send graduation fee at the end (after all state changes and LP creation)
+        if (graduationFee > 0) {
+            payable(treasury).sendValue(graduationFee);
+        }
+
+        emit Graduated(totalZil, liquidityZil, liquidityTokens, tokenId, graduationFee);
     }
 
     function _sqrt(uint256 x) internal pure returns (uint256 y) {

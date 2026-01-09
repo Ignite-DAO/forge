@@ -119,6 +119,7 @@ contract BondingCurveTest is Test {
 
     uint256 constant GRADUATION_MARKET_CAP = 1_000_000 ether; // Very high to prevent premature graduation in tests
     uint256 constant TRADING_FEE_PERCENT = 100; // 1%
+    uint256 constant GRADUATION_FEE_PERCENT = 250; // 2.5%
     uint24 constant DEFAULT_V3_FEE = 10000; // 1%
 
     function setUp() public {
@@ -134,6 +135,7 @@ contract BondingCurveTest is Test {
             treasury,
             GRADUATION_MARKET_CAP,
             TRADING_FEE_PERCENT,
+            GRADUATION_FEE_PERCENT,
             DEFAULT_V3_FEE,
             config
         );
@@ -345,6 +347,7 @@ contract BondingCurveTest is Test {
             treasury,
             1 ether, // Minimum valid graduation cap
             TRADING_FEE_PERCENT,
+            GRADUATION_FEE_PERCENT,
             DEFAULT_V3_FEE,
             config
         );
@@ -377,6 +380,7 @@ contract BondingCurveTest is Test {
             treasury,
             1 ether, // Minimum valid graduation cap
             TRADING_FEE_PERCENT,
+            GRADUATION_FEE_PERCENT,
             DEFAULT_V3_FEE,
             config
         );
@@ -437,6 +441,99 @@ contract BondingCurveTest is Test {
 
         assertEq(treasury.balance, treasuryBefore + fees);
         assertEq(pool.feesCollected(), 0);
+    }
+
+    function test_Graduation_SendsFeeToTreasury() public {
+        BondingCurveRouterConfig memory config = BondingCurveRouterConfig({
+            wrappedNative: address(weth),
+            positionManager: address(positionManager)
+        });
+
+        ForgeBondingCurveFactory lowCapFactory = new ForgeBondingCurveFactory(
+            treasury,
+            1 ether, // Low graduation cap
+            TRADING_FEE_PERCENT,
+            250, // 2.5% graduation fee
+            DEFAULT_V3_FEE,
+            config
+        );
+
+        BondingCurveCreateParams memory params = BondingCurveCreateParams({
+            name: "Graduate Token",
+            symbol: "GRAD",
+            metadataURI: ""
+        });
+
+        vm.prank(creator);
+        address poolAddr = lowCapFactory.createPool(params);
+        ForgeBondingCurvePool pool = ForgeBondingCurvePool(payable(poolAddr));
+
+        assertEq(pool.graduationFeePercent(), 250);
+
+        uint256 treasuryBefore = treasury.balance;
+
+        vm.deal(alice, 100 ether);
+        vm.prank(alice);
+        pool.buy{value: 50 ether}(0);
+
+        assertEq(uint8(pool.state()), uint8(PoolState.Graduated));
+
+        // Calculate expected fee (2.5% of reserve at graduation)
+        // Reserve was zilReserve before graduation
+        uint256 treasuryAfter = treasury.balance;
+        uint256 treasuryReceived = treasuryAfter - treasuryBefore;
+
+        // Treasury should have received some graduation fee
+        assertGt(treasuryReceived, 0, "treasury should receive graduation fee");
+    }
+
+    function test_SetGraduationFeePercent_Success() public {
+        factory.setGraduationFeePercent(500); // 5%
+        assertEq(factory.graduationFeePercent(), 500);
+    }
+
+    function test_SetGraduationFeePercent_TooHigh_Reverts() public {
+        vm.expectRevert(ForgeBondingCurveFactory.InvalidParam.selector);
+        factory.setGraduationFeePercent(1001); // > 10%
+    }
+
+    function test_Graduation_ZeroFee_NoTransfer() public {
+        BondingCurveRouterConfig memory config = BondingCurveRouterConfig({
+            wrappedNative: address(weth),
+            positionManager: address(positionManager)
+        });
+
+        ForgeBondingCurveFactory zeroFeeFactory = new ForgeBondingCurveFactory(
+            treasury,
+            1 ether, // Low graduation cap
+            TRADING_FEE_PERCENT,
+            0, // 0% graduation fee
+            DEFAULT_V3_FEE,
+            config
+        );
+
+        BondingCurveCreateParams memory params = BondingCurveCreateParams({
+            name: "Graduate Token",
+            symbol: "GRAD",
+            metadataURI: ""
+        });
+
+        vm.prank(creator);
+        address poolAddr = zeroFeeFactory.createPool(params);
+        ForgeBondingCurvePool pool = ForgeBondingCurvePool(payable(poolAddr));
+
+        assertEq(pool.graduationFeePercent(), 0);
+
+        uint256 treasuryBefore = treasury.balance;
+
+        vm.deal(alice, 100 ether);
+        vm.prank(alice);
+        pool.buy{value: 50 ether}(0);
+
+        assertEq(uint8(pool.state()), uint8(PoolState.Graduated));
+
+        // Treasury should not have received any graduation fee
+        assertEq(treasury.balance, treasuryBefore, "treasury should not receive fee when 0%");
     }
 
     // ------------------------------
@@ -552,6 +649,7 @@ contract BondingCurveTest is Test {
             treasury,
             0, // Zero graduation cap should revert
             TRADING_FEE_PERCENT,
+            GRADUATION_FEE_PERCENT,
             DEFAULT_V3_FEE,
             config
         );
@@ -570,6 +668,44 @@ contract BondingCurveTest is Test {
         // Verify LP was automatically transferred to dead address during graduation
         (,,,,,address owner) = positionManager.positions(lpTokenId);
         assertEq(owner, address(0x000000000000000000000000000000000000dEaD), "LP should be burned");
+    }
+
+    // ------------------------------
+    // Security Tests
+    // ------------------------------
+
+    function test_Buy_BelowMinimum_Reverts() public {
+        ForgeBondingCurvePool pool = _createPool();
+
+        vm.deal(alice, 1 ether);
+        vm.prank(alice);
+        vm.expectRevert(ForgeBondingCurvePool.BelowMinimum.selector);
+        pool.buy{value: 0.0001 ether}(0); // Below MIN_BUY_AMOUNT of 0.001 ether
+    }
+
+    function test_Sell_BelowMinimum_Reverts() public {
+        ForgeBondingCurvePool pool = _createPool();
+
+        vm.deal(alice, 10 ether);
+        vm.prank(alice);
+        pool.buy{value: 1 ether}(0);
+
+        IERC20 token = pool.token();
+        uint256 tinyAmount = 1e14; // Below MIN_SELL_TOKENS of 1e15
+
+        vm.startPrank(alice);
+        token.approve(address(pool), tinyAmount);
+        vm.expectRevert(ForgeBondingCurvePool.BelowMinimum.selector);
+        pool.sell(tinyAmount, 0);
+        vm.stopPrank();
+    }
+
+    function test_SecurityConstants_Exist() public {
+        ForgeBondingCurvePool pool = _createPool();
+
+        assertEq(pool.MIN_BUY_AMOUNT(), 0.001 ether);
+        assertEq(pool.MIN_SELL_TOKENS(), 1e15);
+        assertEq(pool.MIN_GRADUATION_LIQUIDITY(), 0.1 ether);
     }
 
     // ------------------------------
@@ -758,6 +894,7 @@ contract BondingCurveTest is Test {
             treasury,
             1 ether, // Low graduation cap
             TRADING_FEE_PERCENT,
+            GRADUATION_FEE_PERCENT,
             DEFAULT_V3_FEE,
             config
         );

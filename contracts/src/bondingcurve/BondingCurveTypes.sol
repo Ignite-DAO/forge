@@ -25,5 +25,6 @@ struct BondingCurveInitParams {
     uint24 v3Fee;
     address treasury;
     uint256 tradingFeePercent;
+    uint256 graduationFeePercent;
     BondingCurveRouterConfig routers;
 }

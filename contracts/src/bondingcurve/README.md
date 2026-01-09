@@ -20,6 +20,14 @@ Linear bonding curve implementation for fair token launches. Tokens are sold alo
 
 Cost to fill entire curve: ~3,450 ZIL
 
+### Trading Limits
+
+| Parameter              | Value       | Description                    |
+| ---------------------- | ----------- | ------------------------------ |
+| `MIN_BUY_AMOUNT`       | 0.001 ZIL   | Minimum ZIL per buy            |
+| `MIN_SELL_TOKENS`      | 0.001 tokens| Minimum tokens per sell        |
+| `MIN_GRADUATION_LIQUIDITY` | 0.1 ZIL | Minimum ZIL for graduation LP  |
+
 ## Deployment
 
 Deploy the factory with required environment variables:
@@ -32,6 +40,7 @@ WRAPPED_NATIVE=0x... \
 PLUNDER_V3_NFPM=0x... \
 GRADUATION_MARKET_CAP=4200000000000000000000000 \
 TRADING_FEE_PERCENT=100 \
+GRADUATION_FEE_PERCENT=250 \
 DEFAULT_V3_FEE=10000 \
 forge script script/DeployBondingCurveFactory.s.sol \
   --rpc-url $RPC_URL \
@@ -41,14 +50,15 @@ forge script script/DeployBondingCurveFactory.s.sol \
 
 ### Constructor Parameters
 
-| Parameter               | Description                               | Default                                      |
-| ----------------------- | ----------------------------------------- | -------------------------------------------- |
-| `TREASURY_ADDRESS`      | Address receiving fees                    | Required                                     |
-| `WRAPPED_NATIVE`        | WZIL address                              | Required                                     |
-| `PLUNDER_V3_NFPM`       | Plunder V3 NonfungiblePositionManager     | `0x17678B52997B89b179c0a471bF8d266A4A4c6AC5` |
-| `GRADUATION_MARKET_CAP` | Market cap threshold for graduation (wei) | 4,200,000 ZIL                                |
-| `TRADING_FEE_PERCENT`   | Fee in basis points (100 = 1%)            | 100 (1%)                                     |
-| `DEFAULT_V3_FEE`        | Plunder V3 pool fee tier                  | 10000 (1%)                                   |
+| Parameter                 | Description                               | Default                                      |
+| ------------------------- | ----------------------------------------- | -------------------------------------------- |
+| `TREASURY_ADDRESS`        | Address receiving fees                    | Required                                     |
+| `WRAPPED_NATIVE`          | WZIL address                              | Required                                     |
+| `PLUNDER_V3_NFPM`         | Plunder V3 NonfungiblePositionManager     | `0x17678B52997B89b179c0a471bF8d266A4A4c6AC5` |
+| `GRADUATION_MARKET_CAP`   | Market cap threshold for graduation (wei) | 4,200,000 ZIL                                |
+| `TRADING_FEE_PERCENT`     | Trading fee in basis points (100 = 1%)    | 100 (1%)                                     |
+| `GRADUATION_FEE_PERCENT`  | Graduation fee in basis points (250 = 2.5%) | 250 (2.5%)                                 |
+| `DEFAULT_V3_FEE`          | Plunder V3 pool fee tier                  | 10000 (1%)                                   |
 
 ## Updating Factory Parameters
 
@@ -86,6 +96,16 @@ Maximum: 1000 (10%)
 
 ```bash
 cast send $FACTORY_ADDRESS "setTradingFeePercent(uint256)" $NEW_PERCENT \
+  --rpc-url $RPC_URL \
+  --private-key $PRIVATE_KEY
+```
+
+### Set Graduation Fee Percent
+
+Maximum: 1000 (10%). This fee is taken from ZIL reserve during graduation and sent to treasury.
+
+```bash
+cast send $FACTORY_ADDRESS "setGraduationFeePercent(uint256)" $NEW_PERCENT \
   --rpc-url $RPC_URL \
   --private-key $PRIVATE_KEY
 ```
@@ -130,6 +150,7 @@ cast call $FACTORY_ADDRESS "creationFee()(uint256)" --rpc-url $RPC_URL
 cast call $FACTORY_ADDRESS "treasury()(address)" --rpc-url $RPC_URL
 cast call $FACTORY_ADDRESS "graduationMarketCap()(uint256)" --rpc-url $RPC_URL
 cast call $FACTORY_ADDRESS "tradingFeePercent()(uint256)" --rpc-url $RPC_URL
+cast call $FACTORY_ADDRESS "graduationFeePercent()(uint256)" --rpc-url $RPC_URL
 cast call $FACTORY_ADDRESS "poolCount()(uint256)" --rpc-url $RPC_URL
 
 # Pool
@@ -140,6 +161,7 @@ cast call $POOL_ADDRESS "tokensSold()(uint256)" --rpc-url $RPC_URL
 cast call $POOL_ADDRESS "tokensRemaining()(uint256)" --rpc-url $RPC_URL
 cast call $POOL_ADDRESS "progressBps()(uint256)" --rpc-url $RPC_URL  # Progress in basis points (0-10000)
 cast call $POOL_ADDRESS "feesCollected()(uint256)" --rpc-url $RPC_URL
+cast call $POOL_ADDRESS "graduationFeePercent()(uint256)" --rpc-url $RPC_URL
 ```
 
 ## Ownership Transfer

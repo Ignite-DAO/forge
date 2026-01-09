@@ -9,7 +9,7 @@ import {BondingCurveRouterConfig} from "src/bondingcurve/BondingCurveTypes.sol";
 /// @notice Deploy helper for ForgeBondingCurveFactory.
 /// Usage:
 /// TREASURY_ADDRESS=0x... WRAPPED_NATIVE=0x... PLUNDER_V3_NFPM=0x...
-/// GRADUATION_MARKET_CAP=4200000000000000000000000 TRADING_FEE_PERCENT=100 DEFAULT_V3_FEE=10000
+/// GRADUATION_MARKET_CAP=4200000000000000000000000 TRADING_FEE_PERCENT=100 GRADUATION_FEE_PERCENT=250 DEFAULT_V3_FEE=10000
 /// forge script script/DeployBondingCurveFactory.s.sol --rpc-url $RPC --private-key $PK --broadcast
 contract DeployBondingCurveFactoryScript is Script {
     function run() external {
@@ -24,6 +24,9 @@ contract DeployBondingCurveFactoryScript is Script {
 
         // Default 1% trading fee
         uint256 tradingFeePercent = vm.envOr("TRADING_FEE_PERCENT", uint256(100));
+
+        // Default 2.5% graduation fee
+        uint256 graduationFeePercent = vm.envOr("GRADUATION_FEE_PERCENT", uint256(250));
 
         // Default 1% V3 pool fee tier
         uint24 defaultV3Fee = uint24(vm.envOr("DEFAULT_V3_FEE", uint256(10000)));
@@ -40,6 +43,7 @@ contract DeployBondingCurveFactoryScript is Script {
             treasury,
             graduationMarketCap,
             tradingFeePercent,
+            graduationFeePercent,
             defaultV3Fee,
             config
         );
@@ -49,6 +53,7 @@ contract DeployBondingCurveFactoryScript is Script {
         console2.log("Treasury:", treasury);
         console2.log("Graduation Market Cap:", graduationMarketCap);
         console2.log("Trading Fee Percent:", tradingFeePercent);
+        console2.log("Graduation Fee Percent:", graduationFeePercent);
         console2.log("Default V3 Fee:", defaultV3Fee);
     }
 }
