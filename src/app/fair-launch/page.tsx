@@ -753,7 +753,7 @@ export default function FairLaunchPage() {
           <div className="space-y-4">
             <FormField label="Project name" error={errors.projectName?.message}>
               <Input
-                placeholder="Forge Fair Launch"
+                placeholder="Torchpad Fair Launch"
                 {...register("projectName")}
               />
             </FormField>

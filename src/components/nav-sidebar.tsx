@@ -18,6 +18,7 @@ import {
   SidebarRail,
   SidebarSeparator,
   Sidebar as UiSidebar,
+  useSidebar,
 } from "@/components/ui/sidebar";
 
 const generalItems = [
@@ -30,6 +31,35 @@ const toolItems = [
   { href: "/airdrop", label: "Airdrop", icon: Gift },
   { href: "/fair-launch", label: "Fair Launch", icon: Compass },
 ] as const;
+
+function SidebarLogo() {
+  const { state } = useSidebar();
+  const isCollapsed = state === "collapsed";
+
+  return (
+    <Link href="/" className="flex items-center gap-2 select-none">
+      {isCollapsed ? (
+        <Image
+          src="/logo.png"
+          alt="Torchpad"
+          className="h-7 w-7 shrink-0 object-contain brightness-0 dark:brightness-100"
+          height={28}
+          width={28}
+          priority
+        />
+      ) : (
+        <Image
+          src="/logo-with-text.png"
+          alt="Torchpad"
+          className="h-7 w-auto brightness-0 dark:brightness-100"
+          height={28}
+          width={168}
+          priority
+        />
+      )}
+    </Link>
+  );
+}
 
 function SidebarButtons() {
   const pathname = usePathname();
@@ -72,16 +102,7 @@ export function SidebarLayout({ children }: { children: React.ReactNode }) {
       <UiSidebar variant="inset" collapsible="icon">
         <SidebarHeader>
           <div className="h-10 flex items-center px-2">
-            <Link href="/" className="flex items-center gap-2 select-none">
-              <Image
-                src="/forge_logo_text.svg"
-                alt="Forge"
-                className="h-4 brightness-0 dark:brightness-100"
-                height={16}
-                width={96}
-                priority
-              />
-            </Link>
+            <SidebarLogo />
           </div>
         </SidebarHeader>
         <SidebarContent className="no-scrollbar">

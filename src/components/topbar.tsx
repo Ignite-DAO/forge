@@ -13,11 +13,10 @@ export function Topbar({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
         </span>
         <a href="/" className="flex items-center gap-2 select-none sm:hidden">
           <img
-            src="/forge_logo.svg"
-            alt="Forge"
-            className="h-6 w-6 brightness-0 dark:brightness-100"
-            height={24}
-            width={24}
+            src="/logo.png"
+            alt="Torchpad"
+            className="h-8 brightness-0 dark:brightness-100"
+            height={32}
           />
         </a>
       </div>

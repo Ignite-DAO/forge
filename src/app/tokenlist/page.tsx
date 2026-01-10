@@ -48,7 +48,7 @@ export default function TokenListPage() {
         <CardHeader>
           <CardTitle>Deployed tokens</CardTitle>
           <CardDescription>
-            Search and filter tokens created through the Forge factory.
+            Search and filter tokens created through the Torchpad factory.
           </CardDescription>
         </CardHeader>
         <CardContent>

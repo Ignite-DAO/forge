@@ -10,7 +10,7 @@ const projectId =
   process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "SET_ME_PROJECT_ID";
 
 const wagmiConfig = getDefaultConfig({
-  appName: "Forge",
+  appName: "Torchpad",
   projectId,
   chains,
   transports: {

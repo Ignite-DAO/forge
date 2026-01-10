@@ -19,8 +19,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Forge",
-  description: "Forge ERC-20 tokens and airdrop on Zilliqa EVM",
+  title: "Torchpad",
+  description: "Torchpad ERC-20 tokens and airdrop on Zilliqa EVM",
 };
 
 export default function RootLayout({
