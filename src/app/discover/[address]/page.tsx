@@ -99,8 +99,7 @@ export default function BondingCurvePoolPage() {
       { ...poolContract, functionName: "marketCap" },
       { ...poolContract, functionName: "progressBps" },
       { ...poolContract, functionName: "tokensSold" },
-      { ...poolContract, functionName: "tokensRemaining" },
-      { ...poolContract, functionName: "zilReserve" },
+      { ...poolContract, functionName: "realZilReserve" },
       { ...poolContract, functionName: "tradingFeePercent" },
       { ...poolContract, functionName: "graduationMarketCap" },
     ],
@@ -334,10 +333,9 @@ export default function BondingCurvePoolPage() {
       marketCap: poolData[4].result as bigint,
       progressBps: poolData[5].result as bigint,
       tokensSold: poolData[6].result as bigint,
-      tokensRemaining: poolData[7].result as bigint,
-      zilReserve: poolData[8].result as bigint,
-      tradingFeePercent: poolData[9].result as bigint,
-      graduationMarketCap: poolData[10].result as bigint,
+      realZilReserve: poolData[7].result as bigint,
+      tradingFeePercent: poolData[8].result as bigint,
+      graduationMarketCap: poolData[9].result as bigint,
     };
   }, [poolData, poolAddress, tokenSymbol, tokenName]);
 
@@ -455,16 +453,12 @@ export default function BondingCurvePoolPage() {
                       value={`${Number(formatUnits(pool.marketCap, 18)).toLocaleString()} ZIL`}
                     />
                     <Stat
-                      label="ZIL reserve"
-                      value={`${Number(formatUnits(pool.zilReserve, 18)).toLocaleString()} ZIL`}
+                      label="ZIL raised"
+                      value={`${Number(formatUnits(pool.realZilReserve, 18)).toLocaleString()} ZIL`}
                     />
                     <Stat
                       label="Tokens sold"
                       value={`${Number(formatUnits(pool.tokensSold, 18)).toLocaleString()}`}
-                    />
-                    <Stat
-                      label="Tokens remaining"
-                      value={`${Number(formatUnits(pool.tokensRemaining, 18)).toLocaleString()}`}
                     />
                     <Stat
                       label="Trading fee"

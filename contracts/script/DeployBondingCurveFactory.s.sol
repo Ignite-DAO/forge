@@ -9,7 +9,8 @@ import {BondingCurveRouterConfig} from "src/bondingcurve/BondingCurveTypes.sol";
 /// @notice Deploy helper for ForgeBondingCurveFactory.
 /// Usage:
 /// TREASURY_ADDRESS=0x... WRAPPED_NATIVE=0x... PLUNDER_V3_NFPM=0x...
-/// GRADUATION_MARKET_CAP=4200000000000000000000000 TRADING_FEE_PERCENT=100 GRADUATION_FEE_PERCENT=250 DEFAULT_V3_FEE=10000
+/// GRADUATION_MARKET_CAP=8000000000000000000000000 INITIAL_VIRTUAL_ZIL_RESERVE=22500000000000000000000
+/// TRADING_FEE_PERCENT=100 GRADUATION_FEE_PERCENT=250 DEFAULT_V3_FEE=10000
 /// forge script script/DeployBondingCurveFactory.s.sol --rpc-url $RPC --private-key $PK --broadcast
 contract DeployBondingCurveFactoryScript is Script {
     function run() external {
@@ -18,9 +19,14 @@ contract DeployBondingCurveFactoryScript is Script {
         address positionManager =
             vm.envOr("PLUNDER_V3_NFPM", address(0x17678B52997B89b179c0a471bF8d266A4A4c6AC5));
 
-        // Default graduation at ~4.2M ZIL (~$84k at $0.02/ZIL)
+        // Default graduation at 8M ZIL (~$50k at $0.0062/ZIL)
         uint256 graduationMarketCap =
-            vm.envOr("GRADUATION_MARKET_CAP", uint256(4_200_000 ether));
+            vm.envOr("GRADUATION_MARKET_CAP", uint256(8_000_000 ether));
+
+        // Default initial virtual ZIL reserve: 22,500 ZIL
+        // This sets the starting price and curve shape
+        uint256 initialVirtualZilReserve =
+            vm.envOr("INITIAL_VIRTUAL_ZIL_RESERVE", uint256(22_500 ether));
 
         // Default 1% trading fee
         uint256 tradingFeePercent = vm.envOr("TRADING_FEE_PERCENT", uint256(100));
@@ -42,6 +48,7 @@ contract DeployBondingCurveFactoryScript is Script {
         ForgeBondingCurveFactory factory = new ForgeBondingCurveFactory(
             treasury,
             graduationMarketCap,
+            initialVirtualZilReserve,
             tradingFeePercent,
             graduationFeePercent,
             defaultV3Fee,
@@ -52,6 +59,7 @@ contract DeployBondingCurveFactoryScript is Script {
         console2.log("BondingCurveFactory deployed at:", address(factory));
         console2.log("Treasury:", treasury);
         console2.log("Graduation Market Cap:", graduationMarketCap);
+        console2.log("Initial Virtual ZIL Reserve:", initialVirtualZilReserve);
         console2.log("Trading Fee Percent:", tradingFeePercent);
         console2.log("Graduation Fee Percent:", graduationFeePercent);
         console2.log("Default V3 Fee:", defaultV3Fee);

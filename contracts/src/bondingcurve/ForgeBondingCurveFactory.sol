@@ -33,6 +33,7 @@ contract ForgeBondingCurveFactory is Ownable2Step, ReentrancyGuard {
     event CreationFeeUpdated(uint256 oldFee, uint256 newFee);
     event TreasuryUpdated(address indexed oldTreasury, address indexed newTreasury);
     event GraduationMarketCapUpdated(uint256 oldCap, uint256 newCap);
+    event InitialVirtualZilReserveUpdated(uint256 oldReserve, uint256 newReserve);
     event TradingFeePercentUpdated(uint256 oldPercent, uint256 newPercent);
     event GraduationFeePercentUpdated(uint256 oldPercent, uint256 newPercent);
     event DefaultV3FeeUpdated(uint24 oldFee, uint24 newFee);
@@ -41,6 +42,7 @@ contract ForgeBondingCurveFactory is Ownable2Step, ReentrancyGuard {
     uint256 public creationFee;
     address public treasury;
     uint256 public graduationMarketCap;
+    uint256 public initialVirtualZilReserve;
     uint256 public tradingFeePercent;
     uint256 public graduationFeePercent;
     uint24 public defaultV3Fee;
@@ -51,6 +53,7 @@ contract ForgeBondingCurveFactory is Ownable2Step, ReentrancyGuard {
     constructor(
         address _treasury,
         uint256 _graduationMarketCap,
+        uint256 _initialVirtualZilReserve,
         uint256 _tradingFeePercent,
         uint256 _graduationFeePercent,
         uint24 _defaultV3Fee,
@@ -63,9 +66,11 @@ contract ForgeBondingCurveFactory is Ownable2Step, ReentrancyGuard {
         if (_graduationFeePercent > 1000) revert InvalidParam(); // Max 10%
         if (_defaultV3Fee == 0) revert InvalidParam();
         if (_graduationMarketCap < MIN_GRADUATION_MARKET_CAP) revert GraduationCapTooLow();
+        if (_initialVirtualZilReserve == 0) revert InvalidParam();
 
         treasury = _treasury;
         graduationMarketCap = _graduationMarketCap;
+        initialVirtualZilReserve = _initialVirtualZilReserve;
         tradingFeePercent = _tradingFeePercent;
         graduationFeePercent = _graduationFeePercent;
         defaultV3Fee = _defaultV3Fee;
@@ -91,6 +96,7 @@ contract ForgeBondingCurveFactory is Ownable2Step, ReentrancyGuard {
             name: params.name,
             symbol: params.symbol,
             graduationMarketCap: graduationMarketCap,
+            initialVirtualZilReserve: initialVirtualZilReserve,
             v3Fee: defaultV3Fee,
             treasury: treasury,
             tradingFeePercent: tradingFeePercent,
@@ -136,6 +142,12 @@ contract ForgeBondingCurveFactory is Ownable2Step, ReentrancyGuard {
         if (newCap < MIN_GRADUATION_MARKET_CAP) revert GraduationCapTooLow();
         emit GraduationMarketCapUpdated(graduationMarketCap, newCap);
         graduationMarketCap = newCap;
+    }
+
+    function setInitialVirtualZilReserve(uint256 newReserve) external onlyOwner {
+        if (newReserve == 0) revert InvalidParam();
+        emit InitialVirtualZilReserveUpdated(initialVirtualZilReserve, newReserve);
+        initialVirtualZilReserve = newReserve;
     }
 
     function setTradingFeePercent(uint256 newPercent) external onlyOwner {

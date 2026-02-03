@@ -22,6 +22,7 @@ struct BondingCurveInitParams {
     string name;
     string symbol;
     uint256 graduationMarketCap;
+    uint256 initialVirtualZilReserve;
     uint24 v3Fee;
     address treasury;
     uint256 tradingFeePercent;
