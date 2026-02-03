@@ -201,8 +201,7 @@ export default function Home() {
     metadata: metadataMap[pool.pool.toLowerCase()],
   }));
 
-  const tradingPools = poolsWithMetadata.filter((p) => p.state === 0);
-  const displayPools = tradingPools.slice(0, 6);
+  const displayPools = poolsWithMetadata.slice(0, 6);
 
   return (
     <div className="space-y-12 pb-12">
@@ -233,13 +232,13 @@ export default function Home() {
         <div className="absolute -right-24 -top-24 size-72 rounded-full bg-primary/20 blur-3xl" />
       </section>
 
-      {/* Live Launches */}
+      {/* Recent Launches */}
       <section>
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <h2 className="text-xl font-semibold">Live Launches</h2>
-            {tradingPools.length > 0 && (
-              <Badge variant="default">{tradingPools.length} trading</Badge>
+            <h2 className="text-xl font-semibold">Recent Launches</h2>
+            {poolsWithMetadata.length > 0 && (
+              <Badge variant="default">{poolsWithMetadata.length} total</Badge>
             )}
           </div>
           <Button asChild variant="ghost" size="sm">
@@ -256,7 +255,7 @@ export default function Home() {
         ) : displayPools.length === 0 ? (
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">No live launches yet</CardTitle>
+              <CardTitle className="text-base">No launches yet</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground mb-4">
