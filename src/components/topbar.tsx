@@ -19,6 +19,9 @@ export function Topbar({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
             height={32}
           />
         </a>
+        <span className="rounded-full bg-orange-500/15 px-2 py-0.5 text-xs font-medium text-orange-600 dark:text-orange-400">
+          Beta
+        </span>
       </div>
       <div className="flex items-center gap-1.5">
         <ThemeToggle />
