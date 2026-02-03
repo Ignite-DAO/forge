@@ -1,10 +1,12 @@
 "use client";
 
 import {
+  Coins,
   Gift,
   Rocket,
   Sparkles,
   TrendingUp,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -324,6 +326,57 @@ export default function Home() {
             </div>
           </div>
         </Link>
+      </section>
+
+      {/* How It Works */}
+      <section>
+        <h2 className="text-xl font-semibold mb-4">How It Works</h2>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="rounded-xl border border-border p-5">
+            <div className="flex items-center gap-3 mb-2">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <TrendingUp className="size-4" />
+              </span>
+              <h3 className="font-medium">Bonding Curve</h3>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Launch tokens with automatic liquidity. Price increases with each purchase. Auto-migrates to PlunderSwap at graduation.
+            </p>
+          </div>
+          <div className="rounded-xl border border-border p-5">
+            <div className="flex items-center gap-3 mb-2">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Users className="size-4" />
+              </span>
+              <h3 className="font-medium">Fair Launch</h3>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Community-first raises with soft/hard caps, liquidity %, and optional whitelists. Auto-lists on PlunderSwap.
+            </p>
+          </div>
+          <div className="rounded-xl border border-border p-5">
+            <div className="flex items-center gap-3 mb-2">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Coins className="size-4" />
+              </span>
+              <h3 className="font-medium">Token Creation</h3>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Simple ERC-20 factory. Set name, symbol, decimals, and supply. Full supply minted to your wallet.
+            </p>
+          </div>
+          <div className="rounded-xl border border-border p-5">
+            <div className="flex items-center gap-3 mb-2">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Gift className="size-4" />
+              </span>
+              <h3 className="font-medium">Airdrops</h3>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Batch distribute to up to 500 recipients via CSV. Approve once, send to all addresses at once.
+            </p>
+          </div>
+        </div>
       </section>
     </div>
   );

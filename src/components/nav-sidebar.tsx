@@ -1,6 +1,6 @@
 "use client";
 
-import { Compass, Gift, Home, Rocket, Sparkles } from "lucide-react";
+import { Compass, Gift, HelpCircle, Home, Rocket, Sparkles } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -30,6 +30,10 @@ const toolItems = [
   { href: "/create-token", label: "Create Token", icon: Sparkles },
   { href: "/airdrop", label: "Airdrop", icon: Gift },
   { href: "/fair-launch", label: "Fair Launch", icon: Compass },
+] as const;
+
+const resourceItems = [
+  { href: "/faq", label: "FAQ", icon: HelpCircle },
 ] as const;
 
 function SidebarLogo() {
@@ -64,7 +68,7 @@ function SidebarLogo() {
 function SidebarButtons() {
   const pathname = usePathname();
 
-  const renderItems = (items: typeof generalItems | typeof toolItems) =>
+  const renderItems = (items: typeof generalItems | typeof toolItems | typeof resourceItems) =>
     items.map((item) => {
       const Icon = item.icon;
       return (
@@ -90,6 +94,12 @@ function SidebarButtons() {
         <SidebarGroupLabel>Tools</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>{renderItems(toolItems)}</SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+      <SidebarGroup>
+        <SidebarGroupLabel>Resources</SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu>{renderItems(resourceItems)}</SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
     </>
