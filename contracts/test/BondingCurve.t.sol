@@ -3,9 +3,15 @@ pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
 import {console2} from "forge-std/console2.sol";
+import {StdStorage, stdStorage} from "forge-std/StdStorage.sol";
 import {ForgeBondingCurveFactory} from "src/bondingcurve/ForgeBondingCurveFactory.sol";
 import {ForgeBondingCurvePool} from "src/bondingcurve/ForgeBondingCurvePool.sol";
-import {BondingCurveCreateParams, BondingCurveRouterConfig, PoolState} from "src/bondingcurve/BondingCurveTypes.sol";
+import {ForgeBondingCurveToken} from "src/bondingcurve/ForgeBondingCurveToken.sol";
+import {
+    BondingCurveCreateParams,
+    BondingCurveRouterConfig,
+    PoolState
+} from "src/bondingcurve/BondingCurveTypes.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 contract MockWETH {
@@ -116,7 +122,129 @@ contract MockPositionManager {
     }
 }
 
+contract MockV3Pool {
+    uint160 public sqrtPriceX96;
+
+    constructor(uint160 price) {
+        sqrtPriceX96 = price;
+    }
+
+    function slot0()
+        external
+        view
+        returns (uint160, int24, uint16, uint16, uint16, uint8, bool)
+    {
+        return (sqrtPriceX96, 0, 0, 0, 0, 0, false);
+    }
+}
+
+contract MockV3Factory {
+    mapping(bytes32 => address) public pools;
+
+    function getPool(address token0, address token1, uint24 fee) external view returns (address) {
+        return pools[_poolKey(token0, token1, fee)];
+    }
+
+    function setPool(address token0, address token1, uint24 fee, address pool) external {
+        pools[_poolKey(token0, token1, fee)] = pool;
+    }
+
+    function _poolKey(address token0, address token1, uint24 fee) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(token0, token1, fee));
+    }
+}
+
+contract MockPositionManagerWithFactory {
+    uint256 public nextTokenId = 1;
+    address public factory;
+    uint256 public amount0Bps = 10_000;
+    uint256 public amount1Bps = 10_000;
+
+    struct Position {
+        address token0;
+        address token1;
+        uint24 fee;
+        uint256 amount0;
+        uint256 amount1;
+        address owner;
+    }
+
+    mapping(uint256 => Position) public positions;
+
+    struct MintParams {
+        address token0;
+        address token1;
+        uint24 fee;
+        int24 tickLower;
+        int24 tickUpper;
+        uint256 amount0Desired;
+        uint256 amount1Desired;
+        uint256 amount0Min;
+        uint256 amount1Min;
+        address recipient;
+        uint256 deadline;
+    }
+
+    constructor(address factory_) {
+        factory = factory_;
+    }
+
+    function setUsedBps(uint256 amount0Bps_, uint256 amount1Bps_) external {
+        amount0Bps = amount0Bps_;
+        amount1Bps = amount1Bps_;
+    }
+
+    function createAndInitializePoolIfNecessary(
+        address token0,
+        address token1,
+        uint24 fee,
+        uint160 sqrtPriceX96
+    ) external returns (address) {
+        MockV3Factory v3Factory = MockV3Factory(factory);
+        address existing = v3Factory.getPool(token0, token1, fee);
+        if (existing != address(0)) {
+            return existing;
+        }
+
+        MockV3Pool pool = new MockV3Pool(sqrtPriceX96);
+        v3Factory.setPool(token0, token1, fee, address(pool));
+        return address(pool);
+    }
+
+    function mint(MintParams calldata params)
+        external
+        payable
+        returns (uint256 tokenId, uint128 liquidity, uint256 amount0, uint256 amount1)
+    {
+        amount0 = (params.amount0Desired * amount0Bps) / 10_000;
+        amount1 = (params.amount1Desired * amount1Bps) / 10_000;
+
+        IERC20(params.token0).transferFrom(msg.sender, address(this), amount0);
+        IERC20(params.token1).transferFrom(msg.sender, address(this), amount1);
+
+        tokenId = nextTokenId++;
+        liquidity = uint128(amount0 + amount1);
+
+        positions[tokenId] = Position({
+            token0: params.token0,
+            token1: params.token1,
+            fee: params.fee,
+            amount0: amount0,
+            amount1: amount1,
+            owner: params.recipient
+        });
+    }
+
+    function transferFrom(address from, address to, uint256 tokenId) external {
+        require(positions[tokenId].owner == from, "not owner");
+        positions[tokenId].owner = to;
+    }
+}
+
+
 contract BondingCurveTest is Test {
+    using stdStorage for StdStorage;
+
     ForgeBondingCurveFactory factory;
     MockWETH weth;
     MockPositionManager positionManager;
@@ -465,6 +593,29 @@ contract BondingCurveTest is Test {
         assertEq(pool.realZilReserve(), 0);
     }
 
+    function test_Graduation_SweepsLeftoverAssetsToTreasury() public {
+        MockWETH localWeth = new MockWETH();
+        MockV3Factory v3Factory = new MockV3Factory();
+        MockPositionManagerWithFactory pm = new MockPositionManagerWithFactory(address(v3Factory));
+        pm.setUsedBps(5000, 5000);
+
+        ForgeBondingCurvePool pool = _createLowCapPoolWithConfig(address(localWeth), address(pm));
+        IERC20 token = pool.token();
+
+        uint256 treasuryTokenBefore = token.balanceOf(treasury);
+        uint256 treasuryWethBefore = localWeth.balanceOf(treasury);
+
+        vm.deal(alice, 1000 ether);
+        vm.prank(alice);
+        pool.buy{value: 100 ether}(0);
+
+        assertEq(uint8(pool.state()), uint8(PoolState.Graduated));
+        assertEq(token.balanceOf(address(pool)), 0, "pool tokens should be swept");
+        assertEq(localWeth.balanceOf(address(pool)), 0, "pool WETH should be swept");
+        assertGt(token.balanceOf(treasury), treasuryTokenBefore, "treasury should receive leftover tokens");
+        assertGt(localWeth.balanceOf(treasury), treasuryWethBefore, "treasury should receive leftover WETH");
+    }
+
     // ------------------------------
     // Fee Tests
     // ------------------------------
@@ -490,6 +641,68 @@ contract BondingCurveTest is Test {
 
         assertEq(treasury.balance, treasuryBefore + fees);
         assertEq(pool.feesCollected(), 0);
+    }
+
+    function test_Sell_UsesFeesWhenRealReserveDepleted() public {
+        ForgeBondingCurvePool pool = _createPool();
+        IERC20 token = pool.token();
+
+        vm.deal(alice, 10 ether);
+        vm.prank(alice);
+        uint256 aliceTokens = pool.buy{value: 10 ether}(0);
+
+        uint256 feesBefore = pool.feesCollected();
+        assertGt(feesBefore, 0);
+
+        uint256 realReserveSlot = stdstore.target(address(pool)).sig("realZilReserve()").find();
+        vm.store(address(pool), bytes32(realReserveSlot), bytes32(uint256(0)));
+        assertEq(pool.realZilReserve(), 0);
+
+        uint256 target = feesBefore / 10;
+        if (target == 0) {
+            target = 1;
+        }
+
+        uint256 tokensToSell = _tokensToSellForGross(
+            target,
+            pool.virtualZilReserve(),
+            pool.virtualTokenReserve(),
+            pool.k()
+        );
+        assertGt(tokensToSell, 0);
+        assertLt(tokensToSell, aliceTokens);
+
+        (uint256 quotedZil,) = pool.quoteSell(tokensToSell);
+        assertGt(quotedZil, 0, "quote should use fees");
+
+        vm.startPrank(alice);
+        token.approve(address(pool), tokensToSell);
+        pool.sell(tokensToSell, 0);
+        vm.stopPrank();
+
+        assertEq(pool.realZilReserve(), 0);
+        assertLt(pool.feesCollected(), feesBefore);
+    }
+
+    function test_QuoteSell_ZeroWhenExceedingRealPlusFees() public {
+        ForgeBondingCurvePool pool = _createPool();
+
+        vm.deal(alice, 200_000 ether);
+        vm.prank(alice);
+        pool.buy{value: 150_000 ether}(0);
+
+        uint256 available = pool.realZilReserve() + pool.feesCollected();
+        uint256 vZ = pool.virtualZilReserve();
+        uint256 vT = pool.virtualTokenReserve();
+        uint256 k = pool.k();
+
+        uint256 target = available + 1;
+        require(target < vZ, "target too large");
+        uint256 tokensToSell = _tokensToSellForGross(target, vZ, vT, k);
+
+        (uint256 zilOut, uint256 fee) = pool.quoteSell(tokensToSell);
+        assertEq(zilOut, 0);
+        assertEq(fee, 0);
     }
 
     function test_Graduation_SendsFeeToTreasury() public {
@@ -772,6 +985,39 @@ contract BondingCurveTest is Test {
         vm.prank(alice);
         vm.expectRevert(ForgeBondingCurvePool.TransferFailed.selector);
         payable(address(pool)).transfer(1 ether);
+    }
+
+    // ------------------------------
+    // Transfer Lock Tests
+    // ------------------------------
+
+    function test_TransferBlockedBeforeGraduation() public {
+        ForgeBondingCurvePool pool = _createPool();
+
+        vm.deal(alice, 10 ether);
+        vm.prank(alice);
+        uint256 tokensOut = pool.buy{value: 1 ether}(0);
+
+        IERC20 token = pool.token();
+        vm.prank(alice);
+        vm.expectRevert(ForgeBondingCurveToken.TradingNotEnabled.selector);
+        token.transfer(bob, tokensOut / 2);
+    }
+
+    function test_TransferEnabledAfterGraduation() public {
+        ForgeBondingCurvePool pool = _createLowCapPool();
+
+        vm.deal(alice, 10000 ether);
+        vm.prank(alice);
+        pool.buy{value: 100 ether}(0);
+
+        IERC20 token = pool.token();
+        uint256 aliceBal = token.balanceOf(alice);
+
+        vm.prank(alice);
+        token.transfer(bob, aliceBal / 2);
+
+        assertEq(token.balanceOf(bob), aliceBal / 2);
     }
 
     // ------------------------------
@@ -1362,5 +1608,46 @@ contract BondingCurveTest is Test {
 
         require(pool.state() == PoolState.Graduated, "pool should be graduated");
         return pool;
+    }
+
+    function _tokensToSellForGross(uint256 target, uint256 vZ, uint256 vT, uint256 k)
+        internal
+        pure
+        returns (uint256)
+    {
+        require(target < vZ, "target too large");
+        uint256 newVZ = vZ - target;
+        uint256 newVT = k / newVZ;
+        return newVT - vT;
+    }
+
+    function _createLowCapPoolWithConfig(address wrappedNative, address positionManager_)
+        internal
+        returns (ForgeBondingCurvePool)
+    {
+        BondingCurveRouterConfig memory config = BondingCurveRouterConfig({
+            wrappedNative: wrappedNative,
+            positionManager: positionManager_
+        });
+
+        ForgeBondingCurveFactory lowCapFactory = new ForgeBondingCurveFactory(
+            treasury,
+            1 ether,
+            INITIAL_VIRTUAL_ZIL_RESERVE,
+            TRADING_FEE_PERCENT,
+            GRADUATION_FEE_PERCENT,
+            DEFAULT_V3_FEE,
+            config
+        );
+
+        BondingCurveCreateParams memory params = BondingCurveCreateParams({
+            name: "Graduate Token",
+            symbol: "GRAD",
+            metadataURI: ""
+        });
+
+        vm.prank(creator);
+        address poolAddr = lowCapFactory.createPool(params);
+        return ForgeBondingCurvePool(payable(poolAddr));
     }
 }

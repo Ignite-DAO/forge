@@ -8,7 +8,7 @@ import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 
 import {PoolState, BondingCurveInitParams} from "./BondingCurveTypes.sol";
 import {IWETH9, INonfungiblePositionManager} from "../fairlaunch/PlunderInterfaces.sol";
-import {ForgeStandardERC20} from "../ForgeStandardERC20.sol";
+import {ForgeBondingCurveToken} from "./ForgeBondingCurveToken.sol";
 
 contract ForgeBondingCurvePool is ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -97,7 +97,7 @@ contract ForgeBondingCurvePool is ReentrancyGuard {
 
         token = IERC20(
             address(
-                new ForgeStandardERC20(params.name, params.symbol, 18, TOTAL_SUPPLY, address(this))
+                new ForgeBondingCurveToken(params.name, params.symbol, 18, TOTAL_SUPPLY, address(this))
             )
         );
 
@@ -138,11 +138,18 @@ contract ForgeBondingCurvePool is ReentrancyGuard {
         zilOut = grossProceeds - fee;
 
         if (zilOut < minZilOut) revert SlippageExceeded();
-        if (grossProceeds > realZilReserve) revert InsufficientReserve();
+        uint256 available = realZilReserve + feesCollected;
+        if (grossProceeds > available) revert InsufficientReserve();
 
         virtualTokenReserve += tokensIn;
         virtualZilReserve -= grossProceeds;
-        realZilReserve -= grossProceeds;
+        if (grossProceeds > realZilReserve) {
+            uint256 feesUsed = grossProceeds - realZilReserve;
+            realZilReserve = 0;
+            feesCollected -= feesUsed;
+        } else {
+            realZilReserve -= grossProceeds;
+        }
         feesCollected += fee;
 
         token.safeTransferFrom(msg.sender, address(this), tokensIn);
@@ -192,7 +199,8 @@ contract ForgeBondingCurvePool is ReentrancyGuard {
 
     function quoteSell(uint256 tokensIn) external view returns (uint256 zilOut, uint256 fee) {
         uint256 grossProceeds = _calculateSell(tokensIn);
-        if (grossProceeds > realZilReserve) {
+        uint256 available = realZilReserve + feesCollected;
+        if (grossProceeds > available) {
             return (0, 0);
         }
         fee = (grossProceeds * tradingFeePercent) / FEE_DENOMINATOR;
@@ -238,6 +246,35 @@ contract ForgeBondingCurvePool is ReentrancyGuard {
         IERC20(wrappedNative).forceApprove(positionManager, liquidityZil);
         token.forceApprove(positionManager, liquidityTokens);
 
+        (uint256 tokenId, uint256 usedToken, uint256 usedWeth) =
+            _mintV3Liquidity(liquidityTokens, liquidityZil);
+        lpTokenIdV3 = tokenId;
+
+        IERC20(wrappedNative).forceApprove(positionManager, 0);
+        token.forceApprove(positionManager, 0);
+        _sweepLeftovers(liquidityTokens, liquidityZil, usedToken, usedWeth);
+
+        INonfungiblePositionManager(positionManager).transferFrom(
+            address(this),
+            address(0x000000000000000000000000000000000000dEaD),
+            tokenId
+        );
+
+        realZilReserve = 0;
+
+        if (graduationFee > 0) {
+            payable(treasury).sendValue(graduationFee);
+        }
+
+        ForgeBondingCurveToken(address(token)).enableTrading();
+
+        emit Graduated(totalZil, liquidityZil, liquidityTokens, tokenId, graduationFee);
+    }
+
+    function _mintV3Liquidity(uint256 liquidityTokens, uint256 liquidityZil)
+        internal
+        returns (uint256 tokenId, uint256 usedToken, uint256 usedWeth)
+    {
         bool tokenIsToken0 = address(token) < wrappedNative;
 
         INonfungiblePositionManager(positionManager).createAndInitializePoolIfNecessary(
@@ -252,41 +289,42 @@ contract ForgeBondingCurvePool is ReentrancyGuard {
 
         (int24 tickLower, int24 tickUpper) = _getFullRangeTicks(v3Fee);
 
-        (uint256 tokenId, uint128 liquidity,,) = INonfungiblePositionManager(positionManager).mint(
-            INonfungiblePositionManager.MintParams({
-                token0: tokenIsToken0 ? address(token) : wrappedNative,
-                token1: tokenIsToken0 ? wrappedNative : address(token),
-                fee: v3Fee,
-                tickLower: tickLower,
-                tickUpper: tickUpper,
-                amount0Desired: tokenIsToken0 ? liquidityTokens : liquidityZil,
-                amount1Desired: tokenIsToken0 ? liquidityZil : liquidityTokens,
-                amount0Min: 0,
-                amount1Min: 0,
-                recipient: address(this),
-                deadline: block.timestamp + 900
-            })
-        );
+        (uint256 mintedTokenId, uint128 liquidity, uint256 amount0, uint256 amount1) =
+            INonfungiblePositionManager(positionManager).mint(
+                INonfungiblePositionManager.MintParams({
+                    token0: tokenIsToken0 ? address(token) : wrappedNative,
+                    token1: tokenIsToken0 ? wrappedNative : address(token),
+                    fee: v3Fee,
+                    tickLower: tickLower,
+                    tickUpper: tickUpper,
+                    amount0Desired: tokenIsToken0 ? liquidityTokens : liquidityZil,
+                    amount1Desired: tokenIsToken0 ? liquidityZil : liquidityTokens,
+                    amount0Min: 0,
+                    amount1Min: 0,
+                    recipient: address(this),
+                    deadline: block.timestamp + 900
+                })
+            );
 
-        if (tokenId == 0 || liquidity == 0) revert LiquidityCreationFailed();
-        lpTokenIdV3 = tokenId;
+        if (mintedTokenId == 0 || liquidity == 0) revert LiquidityCreationFailed();
 
-        IERC20(wrappedNative).forceApprove(positionManager, 0);
-        token.forceApprove(positionManager, 0);
+        tokenId = mintedTokenId;
+        usedToken = tokenIsToken0 ? amount0 : amount1;
+        usedWeth = tokenIsToken0 ? amount1 : amount0;
+    }
 
-        INonfungiblePositionManager(positionManager).transferFrom(
-            address(this),
-            address(0x000000000000000000000000000000000000dEaD),
-            tokenId
-        );
+    function _sweepLeftovers(uint256 liquidityTokens, uint256 liquidityZil, uint256 usedToken, uint256 usedWeth)
+        internal
+    {
+        uint256 leftoverToken = liquidityTokens - usedToken;
+        uint256 leftoverWeth = liquidityZil - usedWeth;
 
-        realZilReserve = 0;
-
-        if (graduationFee > 0) {
-            payable(treasury).sendValue(graduationFee);
+        if (leftoverToken > 0) {
+            token.safeTransfer(treasury, leftoverToken);
         }
-
-        emit Graduated(totalZil, liquidityZil, liquidityTokens, tokenId, graduationFee);
+        if (leftoverWeth > 0) {
+            IERC20(wrappedNative).safeTransfer(treasury, leftoverWeth);
+        }
     }
 
     function _sqrt(uint256 x) internal pure returns (uint256 y) {
