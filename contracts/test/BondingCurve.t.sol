@@ -851,6 +851,299 @@ contract BondingCurveTest is Test {
     }
 
     // ------------------------------
+    // K Invariant Tests
+    // ------------------------------
+
+    function test_KInvariant_AfterBuy() public {
+        ForgeBondingCurvePool pool = _createPool();
+        uint256 kBefore = pool.k();
+
+        vm.deal(alice, 100 ether);
+        vm.prank(alice);
+        pool.buy{value: 10 ether}(0);
+
+        uint256 computedK = pool.virtualTokenReserve() * pool.virtualZilReserve();
+        assertApproxEqRel(computedK, kBefore, 1e10, "k should remain constant after buy");
+    }
+
+    function test_KInvariant_AfterSell() public {
+        ForgeBondingCurvePool pool = _createPool();
+        uint256 kBefore = pool.k();
+
+        vm.deal(alice, 100 ether);
+        vm.prank(alice);
+        uint256 tokensOut = pool.buy{value: 10 ether}(0);
+
+        IERC20 token = pool.token();
+        vm.startPrank(alice);
+        token.approve(address(pool), tokensOut);
+        pool.sell(tokensOut, 0);
+        vm.stopPrank();
+
+        uint256 computedK = pool.virtualTokenReserve() * pool.virtualZilReserve();
+        assertApproxEqRel(computedK, kBefore, 1e10, "k should remain constant after sell");
+    }
+
+    function test_KInvariant_AfterMultipleTradesSequence() public {
+        ForgeBondingCurvePool pool = _createPool();
+        uint256 kBefore = pool.k();
+        IERC20 token = pool.token();
+
+        vm.deal(alice, 1000 ether);
+        vm.deal(bob, 1000 ether);
+
+        vm.prank(alice);
+        uint256 aliceTokens = pool.buy{value: 100 ether}(0);
+
+        vm.prank(bob);
+        uint256 bobTokens = pool.buy{value: 50 ether}(0);
+
+        vm.startPrank(alice);
+        token.approve(address(pool), aliceTokens / 2);
+        pool.sell(aliceTokens / 2, 0);
+        vm.stopPrank();
+
+        vm.prank(bob);
+        pool.buy{value: 25 ether}(0);
+
+        vm.startPrank(bob);
+        token.approve(address(pool), bobTokens);
+        pool.sell(bobTokens, 0);
+        vm.stopPrank();
+
+        uint256 computedK = pool.virtualTokenReserve() * pool.virtualZilReserve();
+        assertApproxEqRel(computedK, kBefore, 1e10, "k should remain constant after trade sequence");
+    }
+
+    // ------------------------------
+    // Graduation Boundary Tests
+    // ------------------------------
+
+    function test_Graduation_ExactThreshold() public {
+        ForgeBondingCurvePool pool = _createMediumCapPool();
+        uint256 graduationCap = pool.graduationMarketCap();
+
+        uint256 preBuyMarketCap = pool.marketCap();
+        assertLt(preBuyMarketCap, graduationCap, "should not be graduated initially");
+
+        vm.deal(alice, 100_000 ether);
+        vm.prank(alice);
+        pool.buy{value: 50_000 ether}(0);
+
+        assertEq(uint8(pool.state()), uint8(PoolState.Graduated), "should graduate at threshold");
+        assertGe(pool.marketCap(), graduationCap, "market cap should be at or above graduation cap");
+    }
+
+    function test_Graduation_JustBelowThreshold_DoesNotGraduate() public {
+        ForgeBondingCurvePool pool = _createMediumCapPool();
+
+        vm.deal(alice, 1000 ether);
+        vm.prank(alice);
+        pool.buy{value: 100 ether}(0);
+
+        assertEq(uint8(pool.state()), uint8(PoolState.Trading), "should still be trading");
+        assertLt(pool.marketCap(), pool.graduationMarketCap(), "market cap should be below threshold");
+    }
+
+    function test_Graduation_SingleLargeBuy_FullJourney() public {
+        ForgeBondingCurvePool pool = _createMediumCapPool();
+        IERC20 token = pool.token();
+        uint256 totalSupply = pool.TOTAL_SUPPLY();
+
+        uint256 initialTokenReserve = pool.virtualTokenReserve();
+        uint256 initialMarketCap = pool.marketCap();
+
+        assertEq(initialTokenReserve, totalSupply, "initial reserve should be total supply");
+        assertLt(initialMarketCap, pool.graduationMarketCap(), "should start below graduation cap");
+
+        vm.deal(alice, 100_000 ether);
+        vm.prank(alice);
+        uint256 tokensBought = pool.buy{value: 60_000 ether}(0);
+
+        assertEq(uint8(pool.state()), uint8(PoolState.Graduated), "should graduate after large buy");
+
+        uint256 aliceBalance = token.balanceOf(alice);
+        assertEq(aliceBalance, tokensBought, "alice should have all bought tokens");
+
+        assertGt(tokensBought, 0, "should have bought some tokens");
+        assertLt(tokensBought, totalSupply, "should not have bought entire supply");
+    }
+
+    function test_Graduation_TokenAccountingIsCorrect() public {
+        ForgeBondingCurvePool pool = _createMediumCapPool();
+        IERC20 token = pool.token();
+        uint256 totalSupply = pool.TOTAL_SUPPLY();
+
+        vm.deal(alice, 100_000 ether);
+        vm.prank(alice);
+        uint256 tokensBought = pool.buy{value: 60_000 ether}(0);
+
+        assertEq(uint8(pool.state()), uint8(PoolState.Graduated), "should be graduated");
+
+        uint256 aliceTokens = token.balanceOf(alice);
+        uint256 positionManagerTokens = token.balanceOf(address(positionManager));
+
+        assertEq(aliceTokens, tokensBought, "alice balance should match tokens bought");
+        assertGt(positionManagerTokens, 0, "position manager should have liquidity tokens");
+
+        uint256 accountedTokens = aliceTokens + positionManagerTokens;
+        assertEq(accountedTokens, totalSupply, "all tokens should be accounted for");
+    }
+
+    function test_Graduation_AMMFormulaPreventsTotalExhaustion() public {
+        ForgeBondingCurvePool pool = _createMediumCapPool();
+        uint256 totalSupply = pool.TOTAL_SUPPLY();
+
+        (uint256 quotedTokens,) = pool.quoteBuy(1_000_000 ether);
+
+        assertLt(quotedTokens, totalSupply, "cannot buy entire supply even with huge amount");
+        assertGt(quotedTokens, totalSupply / 2, "should be able to buy significant portion");
+    }
+
+    function test_Graduation_RealZilMatchesBuyerDeposits() public {
+        ForgeBondingCurvePool pool = _createPool();
+
+        uint256 buy1Amount = 1_000 ether;
+        uint256 buy2Amount = 2_000 ether;
+
+        vm.deal(alice, buy1Amount);
+        vm.prank(alice);
+        pool.buy{value: buy1Amount}(0);
+
+        uint256 fee1 = (buy1Amount * pool.tradingFeePercent()) / pool.FEE_DENOMINATOR();
+        uint256 expectedReserve1 = buy1Amount - fee1;
+        assertEq(pool.realZilReserve(), expectedReserve1, "real reserve should match after first buy");
+
+        vm.deal(bob, buy2Amount);
+        vm.prank(bob);
+        pool.buy{value: buy2Amount}(0);
+
+        uint256 fee2 = (buy2Amount * pool.tradingFeePercent()) / pool.FEE_DENOMINATOR();
+        uint256 expectedReserve2 = expectedReserve1 + (buy2Amount - fee2);
+        assertEq(pool.realZilReserve(), expectedReserve2, "real reserve should accumulate correctly");
+
+        assertEq(uint8(pool.state()), uint8(PoolState.Trading), "should still be trading");
+    }
+
+    function test_Graduation_LiquidityTokensRemainForV3() public {
+        ForgeBondingCurvePool pool = _createMediumCapPool();
+        IERC20 token = pool.token();
+        uint256 totalSupply = pool.TOTAL_SUPPLY();
+
+        vm.deal(alice, 100_000 ether);
+        vm.prank(alice);
+        uint256 tokensBought = pool.buy{value: 60_000 ether}(0);
+
+        assertEq(uint8(pool.state()), uint8(PoolState.Graduated), "should be graduated");
+
+        uint256 tokensForLiquidity = token.balanceOf(address(positionManager));
+
+        assertGt(tokensForLiquidity, 0, "must have tokens for V3 liquidity");
+        assertEq(tokensBought + tokensForLiquidity, totalSupply, "tokens sold + liquidity = total supply");
+
+        uint256 liquidityPercent = (tokensForLiquidity * 100) / totalSupply;
+        assertGt(liquidityPercent, 10, "at least 10% should go to liquidity");
+    }
+
+    // ------------------------------
+    // Fee Withdrawal Edge Cases
+    // ------------------------------
+
+    function test_WithdrawFees_ZeroBalance_Reverts() public {
+        ForgeBondingCurvePool pool = _createPool();
+
+        assertEq(pool.feesCollected(), 0, "no fees initially");
+
+        vm.prank(treasury);
+        vm.expectRevert(ForgeBondingCurvePool.ZeroAmount.selector);
+        pool.withdrawFees();
+    }
+
+    function test_WithdrawFees_AfterGraduation() public {
+        ForgeBondingCurvePool pool = _createMediumCapPool();
+
+        vm.deal(alice, 1000 ether);
+        vm.prank(alice);
+        pool.buy{value: 100 ether}(0);
+
+        uint256 feesBeforeGraduation = pool.feesCollected();
+        assertGt(feesBeforeGraduation, 0, "should have fees from trading");
+
+        vm.deal(bob, 100_000 ether);
+        vm.prank(bob);
+        pool.buy{value: 50_000 ether}(0);
+
+        assertEq(uint8(pool.state()), uint8(PoolState.Graduated), "should be graduated");
+
+        uint256 feesAfterGraduation = pool.feesCollected();
+        assertGt(feesAfterGraduation, 0, "fees should still be available");
+
+        uint256 treasuryBefore = treasury.balance;
+        vm.prank(treasury);
+        pool.withdrawFees();
+
+        assertEq(treasury.balance, treasuryBefore + feesAfterGraduation, "treasury should receive fees");
+        assertEq(pool.feesCollected(), 0, "fees should be zeroed");
+    }
+
+    // ------------------------------
+    // Multi-User Graduation Tests
+    // ------------------------------
+
+    function test_MultiUser_OneTriggersGraduation() public {
+        ForgeBondingCurvePool pool = _createMediumCapPool();
+        IERC20 token = pool.token();
+
+        address user1 = address(0x1001);
+        address user2 = address(0x1002);
+        address user3 = address(0x1003);
+        address user4 = address(0x1004);
+        address user5 = address(0x1005);
+
+        vm.deal(user1, 10_000 ether);
+        vm.deal(user2, 10_000 ether);
+        vm.deal(user3, 10_000 ether);
+        vm.deal(user4, 10_000 ether);
+        vm.deal(user5, 100_000 ether);
+
+        vm.prank(user1);
+        uint256 tokens1 = pool.buy{value: 1000 ether}(0);
+        assertEq(uint8(pool.state()), uint8(PoolState.Trading), "should still be trading after user1");
+
+        vm.prank(user2);
+        uint256 tokens2 = pool.buy{value: 1500 ether}(0);
+        assertEq(uint8(pool.state()), uint8(PoolState.Trading), "should still be trading after user2");
+
+        vm.prank(user3);
+        uint256 tokens3 = pool.buy{value: 2000 ether}(0);
+        assertEq(uint8(pool.state()), uint8(PoolState.Trading), "should still be trading after user3");
+
+        vm.prank(user4);
+        uint256 tokens4 = pool.buy{value: 2500 ether}(0);
+        assertEq(uint8(pool.state()), uint8(PoolState.Trading), "should still be trading after user4");
+
+        vm.prank(user5);
+        uint256 tokens5 = pool.buy{value: 50_000 ether}(0);
+        assertEq(uint8(pool.state()), uint8(PoolState.Graduated), "should be graduated after user5");
+
+        assertGt(tokens1, 0, "user1 should have tokens");
+        assertGt(tokens2, 0, "user2 should have tokens");
+        assertGt(tokens3, 0, "user3 should have tokens");
+        assertGt(tokens4, 0, "user4 should have tokens");
+        assertGt(tokens5, 0, "user5 should have tokens");
+
+        assertEq(token.balanceOf(user1), tokens1, "user1 token balance should match");
+        assertEq(token.balanceOf(user2), tokens2, "user2 token balance should match");
+        assertEq(token.balanceOf(user3), tokens3, "user3 token balance should match");
+        assertEq(token.balanceOf(user4), tokens4, "user4 token balance should match");
+        assertEq(token.balanceOf(user5), tokens5, "user5 token balance should match");
+
+        uint256 tokensPerZil1 = tokens1 / 1000;
+        uint256 tokensPerZil5 = tokens5 / 50_000;
+        assertGt(tokensPerZil1, tokensPerZil5, "earlier buyers should get more tokens per ZIL");
+    }
+
+    // ------------------------------
     // Fuzz Tests
     // ------------------------------
 
@@ -888,6 +1181,106 @@ contract BondingCurveTest is Test {
         vm.stopPrank();
 
         assertEq(actualZil, quotedZil, "quote should match actual");
+    }
+
+    // ------------------------------
+    // Zilliqa-Scale Fuzz Tests
+    // ------------------------------
+
+    function testFuzz_BuyQuoteMatchesActual_ZiliqaScale(uint256 buyAmount) public {
+        buyAmount = bound(buyAmount, 1000 ether, 1_000_000 ether);
+
+        ForgeBondingCurvePool pool = _createPool();
+
+        vm.deal(alice, buyAmount + 1 ether);
+
+        (uint256 quotedTokens,) = pool.quoteBuy(buyAmount);
+
+        vm.prank(alice);
+        uint256 actualTokens = pool.buy{value: buyAmount}(0);
+
+        assertEq(actualTokens, quotedTokens, "quote should match actual at Zilliqa scale");
+    }
+
+    function testFuzz_SellQuoteMatchesActual_ZiliqaScale(uint256 buyAmount) public {
+        buyAmount = bound(buyAmount, 10_000 ether, 500_000 ether);
+
+        ForgeBondingCurvePool pool = _createPool();
+
+        if (pool.graduationMarketCap() < 100_000_000 ether) {
+            return;
+        }
+
+        vm.deal(alice, buyAmount + 1 ether);
+
+        vm.prank(alice);
+        uint256 tokensOut = pool.buy{value: buyAmount}(0);
+
+        if (pool.state() != PoolState.Trading) {
+            return;
+        }
+
+        (uint256 quotedZil,) = pool.quoteSell(tokensOut);
+
+        IERC20 token = pool.token();
+        vm.startPrank(alice);
+        token.approve(address(pool), tokensOut);
+        uint256 actualZil = pool.sell(tokensOut, 0);
+        vm.stopPrank();
+
+        assertEq(actualZil, quotedZil, "quote should match actual at Zilliqa scale");
+    }
+
+    function test_LargeBuy_NoPrecisionLoss() public {
+        ForgeBondingCurvePool pool = _createPool();
+        uint256 kBefore = pool.k();
+
+        vm.deal(alice, 600_000 ether);
+
+        (uint256 quotedTokens,) = pool.quoteBuy(500_000 ether);
+
+        vm.prank(alice);
+        uint256 actualTokens = pool.buy{value: 500_000 ether}(0);
+
+        assertEq(actualTokens, quotedTokens, "quote should match for large buy");
+        assertGt(actualTokens, 0, "should receive tokens");
+
+        uint256 computedK = pool.virtualTokenReserve() * pool.virtualZilReserve();
+        assertApproxEqRel(computedK, kBefore, 1e10, "k should remain constant for large buy");
+    }
+
+    function testFuzz_KInvariant_RandomTrades(uint256 buyAmount1, uint256 buyAmount2) public {
+        buyAmount1 = bound(buyAmount1, 1 ether, 100_000 ether);
+        buyAmount2 = bound(buyAmount2, 1 ether, 100_000 ether);
+
+        ForgeBondingCurvePool pool = _createPool();
+        uint256 kBefore = pool.k();
+        IERC20 token = pool.token();
+
+        vm.deal(alice, buyAmount1 + 1 ether);
+        vm.deal(bob, buyAmount2 + 1 ether);
+
+        vm.prank(alice);
+        uint256 aliceTokens = pool.buy{value: buyAmount1}(0);
+
+        uint256 kAfterBuy1 = pool.virtualTokenReserve() * pool.virtualZilReserve();
+        assertApproxEqRel(kAfterBuy1, kBefore, 1e10, "k should remain constant after first buy");
+
+        vm.prank(bob);
+        pool.buy{value: buyAmount2}(0);
+
+        uint256 kAfterBuy2 = pool.virtualTokenReserve() * pool.virtualZilReserve();
+        assertApproxEqRel(kAfterBuy2, kBefore, 1e10, "k should remain constant after second buy");
+
+        if (aliceTokens > pool.MIN_SELL_TOKENS()) {
+            vm.startPrank(alice);
+            token.approve(address(pool), aliceTokens);
+            pool.sell(aliceTokens, 0);
+            vm.stopPrank();
+
+            uint256 kAfterSell = pool.virtualTokenReserve() * pool.virtualZilReserve();
+            assertApproxEqRel(kAfterSell, kBefore, 1e10, "k should remain constant after sell");
+        }
     }
 
     // ------------------------------
@@ -930,6 +1323,33 @@ contract BondingCurveTest is Test {
 
         vm.prank(creator);
         address poolAddr = lowCapFactory.createPool(params);
+        return ForgeBondingCurvePool(payable(poolAddr));
+    }
+
+    function _createMediumCapPool() internal returns (ForgeBondingCurvePool) {
+        BondingCurveRouterConfig memory config = BondingCurveRouterConfig({
+            wrappedNative: address(weth),
+            positionManager: address(positionManager)
+        });
+
+        ForgeBondingCurveFactory mediumCapFactory = new ForgeBondingCurveFactory(
+            treasury,
+            100_000 ether,
+            INITIAL_VIRTUAL_ZIL_RESERVE,
+            TRADING_FEE_PERCENT,
+            GRADUATION_FEE_PERCENT,
+            DEFAULT_V3_FEE,
+            config
+        );
+
+        BondingCurveCreateParams memory params = BondingCurveCreateParams({
+            name: "Medium Cap Token",
+            symbol: "MCAP",
+            metadataURI: ""
+        });
+
+        vm.prank(creator);
+        address poolAddr = mediumCapFactory.createPool(params);
         return ForgeBondingCurvePool(payable(poolAddr));
     }
 
