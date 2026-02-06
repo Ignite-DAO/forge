@@ -5,11 +5,14 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
   type ReactNode,
 } from "react";
-import { useSwitchChain } from "wagmi";
+import { useAccount, useSwitchChain } from "wagmi";
 import { zilliqa, zilliqaTestnet } from "@/lib/chains";
+
+const SUPPORTED_CHAIN_IDS: Set<number> = new Set([zilliqa.id, zilliqaTestnet.id]);
 
 type NetworkContextValue = {
   chainId: number;
@@ -25,31 +28,41 @@ const STORAGE_KEY = "forge-selected-chain";
 const DEFAULT_CHAIN_ID = zilliqa.id;
 
 export function NetworkProvider({ children }: { children: ReactNode }) {
-  const [chainId, setChainIdState] = useState<number>(DEFAULT_CHAIN_ID);
+  const [preferredChainId, setPreferredChainId] =
+    useState<number>(DEFAULT_CHAIN_ID);
+  const { chain } = useAccount();
   const { switchChain } = useSwitchChain();
 
-  // Load from localStorage on mount
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = Number(stored);
-      if (parsed === zilliqa.id || parsed === zilliqaTestnet.id) {
-        setChainIdState(parsed);
+      if (SUPPORTED_CHAIN_IDS.has(parsed)) {
+        setPreferredChainId(parsed);
       }
     }
   }, []);
 
+  const chainId = useMemo(() => {
+    if (chain && SUPPORTED_CHAIN_IDS.has(chain.id)) {
+      return chain.id;
+    }
+    return preferredChainId;
+  }, [chain, preferredChainId]);
+
   const setChainId = useCallback(
     (newChainId: number) => {
-      if (newChainId !== zilliqa.id && newChainId !== zilliqaTestnet.id) {
+      if (!SUPPORTED_CHAIN_IDS.has(newChainId)) {
         return;
       }
-      setChainIdState(newChainId);
       localStorage.setItem(STORAGE_KEY, String(newChainId));
-      // Also request wallet to switch chain
-      switchChain?.({ chainId: newChainId });
+      if (chain) {
+        switchChain?.({ chainId: newChainId });
+      } else {
+        setPreferredChainId(newChainId);
+      }
     },
-    [switchChain],
+    [chain, switchChain],
   );
 
   const switchToMainnet = useCallback(() => {
