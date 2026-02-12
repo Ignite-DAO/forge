@@ -567,9 +567,9 @@ function BondingCurvePoolCard({
               <span>Progress to graduation</span>
               <span>{progress.toFixed(1)}%</span>
             </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+            <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted/70 ring-1 ring-border/40">
               <div
-                className="h-full bg-primary transition-all duration-300"
+                className="h-full rounded-full bg-gradient-to-r from-primary/65 via-primary to-primary/75 shadow-sm shadow-primary/40 transition-all duration-500 ease-out"
                 style={{ width: `${Math.min(progress, 100)}%` }}
               />
             </div>
