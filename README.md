@@ -11,9 +11,9 @@ Forge is a simple, secure way to create fixed‑supply ERC‑20 tokens and run a
   - `/airdrop` airdrop tool (reads fee and sends it if set)
   - `/tokenlist` placeholder for token list
 - Commands:
-  - Dev: `npm run dev` then open `http://localhost:3000`
-  - Build: `npm run build` | Start: `npm run start`
-  - Lint/format (Biome): `npm run lint` | `npm run format`
+  - Dev: `bun run dev` then open `http://localhost:3000`
+  - Build: `bun run build` | Start: `bun run start`
+  - Lint/format (Biome): `bun run lint` | `bun run format`
 - Wallet: RainbowKit connect with custom button; chain switching for 32769/33101
 - Styling: Tailwind v4 via `src/app/globals.css`; shadcn components under `src/components/`
 
@@ -35,17 +35,17 @@ Forge is a simple, secure way to create fixed‑supply ERC‑20 tokens and run a
 
 This repo is prepared to deploy on Cloudflare Workers using OpenNext.
 
-Steps (npm):
+Steps:
 
-- Build Next.js: `npm run build`
-- Build Workers bundle: `npm run cf:build` (outputs `.open-next`)
-- Local preview: `npm run preview`
-- Deploy: `npm run cf:deploy`
+- Build Next.js: `bun run build`
+- Build Workers bundle: `bun run cf:build` (outputs `.open-next`)
+- Local preview: `bun run preview`
+- Deploy: `bun run deploy`
 
 Notes:
 
 - `wrangler.toml` points `main` to `.open-next/worker/index.mjs`. If OpenNext outputs a different file, update that path.
-- Add secrets via `npx wrangler secret put MY_SECRET`.
+- Add secrets via `bunx wrangler secret put MY_SECRET`.
 - Prefer Edge-friendly code paths where possible for best compatibility on Workers.
 
 ## Smart Contracts (Foundry)
