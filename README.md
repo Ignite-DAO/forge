@@ -6,7 +6,7 @@ Forge is a simple, secure way to create fixed‑supply ERC‑20 tokens and run a
 
 - Stack: Next.js (App Router), Tailwind v4, shadcn/ui, RainbowKit + wagmi + viem
 - Routes:
-  - `/` landing with CTAs
+  - `/` landing with a mixed launch browser feed (Bonding Curve + Fair Launch) and CTAs
   - `/create-token` token factory flow (reads fee and sends it if set)
   - `/airdrop` airdrop tool (reads fee and sends it if set)
   - `/tokenlist` placeholder for token list
