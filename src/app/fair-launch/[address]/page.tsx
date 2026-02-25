@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Coins, Info, TimerReset } from "lucide-react";
+import { ArrowLeft, CheckCircle, Coins, Gift, TimerReset, Wallet } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -36,7 +36,6 @@ import {
   parseAmount,
 } from "@/lib/fairlaunch";
 import { formatAddress } from "@/lib/format";
-import { cn } from "@/lib/utils";
 
 interface PoolDetail {
   pool: `0x${string}`;
@@ -559,21 +558,45 @@ export default function LaunchDetailPage() {
               </Card>
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-sm">
-                    <Info className="size-4 text-muted-foreground" />
-                    How to participate
-                  </CardTitle>
+                  <CardTitle>How fair launches work</CardTitle>
+                  <CardDescription>
+                    Everyone gets the same price &mdash; no first-mover advantage
+                  </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-2 text-sm text-muted-foreground">
-                  <p>1. Connect your wallet on the correct chain.</p>
-                  <p>
-                    2. Enter the amount you wish to contribute and submit the
-                    transaction.
-                  </p>
-                  <p>
-                    3. After the sale finalizes, return here to claim your
-                    tokens.
-                  </p>
+                <CardContent className="space-y-3">
+                  <div className="flex gap-4 rounded-lg border bg-muted/30 p-4">
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <Wallet className="size-5" />
+                    </span>
+                    <div>
+                      <p className="text-sm font-medium">Contribute</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        Connect your wallet and contribute {currencyMeta.symbol} during the sale window.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-4 rounded-lg border bg-muted/30 p-4">
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <CheckCircle className="size-5" />
+                    </span>
+                    <div>
+                      <p className="text-sm font-medium">Fair allocation</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        Tokens are distributed proportionally &mdash; everyone pays the same price per token.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-4 rounded-lg border bg-muted/30 p-4">
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500">
+                      <Gift className="size-5" />
+                    </span>
+                    <div>
+                      <p className="text-sm font-medium">Claim tokens</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        Once finalized, return here to claim your share. If the soft cap isn&apos;t met, you get a full refund.
+                      </p>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </div>

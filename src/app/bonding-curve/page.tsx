@@ -308,13 +308,13 @@ export default function BondingCurveLaunchPage() {
           ) : (
             <div className="space-y-6">
               {/* Image Upload */}
-              <div className="space-y-2">
+              <div className="mx-auto max-w-sm space-y-2">
                 <Label>Token image (optional)</Label>
                 <div
-                  className={`relative flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-colors cursor-pointer ${
+                  className={`relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-10 transition-all cursor-pointer ${
                     isDragging
-                      ? "border-primary bg-primary/5"
-                      : "border-muted-foreground/25 hover:border-muted-foreground/50"
+                      ? "border-primary bg-primary/5 ring-4 ring-primary/10"
+                      : "border-muted-foreground/25 hover:border-muted-foreground/50 hover:ring-4 hover:ring-muted/40"
                   }`}
                   onDrop={handleDrop}
                   onDragOver={handleDragOver}
@@ -336,7 +336,7 @@ export default function BondingCurveLaunchPage() {
                       <img
                         src={imagePreview}
                         alt="Preview"
-                        className="size-[120px] rounded-lg object-cover"
+                        className="size-[160px] rounded-xl object-cover ring-2 ring-border"
                       />
                       <button
                         type="button"
@@ -351,11 +351,11 @@ export default function BondingCurveLaunchPage() {
                     </div>
                   ) : (
                     <>
-                      <Upload className="size-8 text-muted-foreground" />
-                      <p className="mt-2 text-sm text-muted-foreground">
+                      <Upload className="size-10 text-muted-foreground" />
+                      <p className="mt-3 text-sm font-medium text-muted-foreground">
                         Drag & drop or click to upload
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="mt-1 text-xs text-muted-foreground">
                         PNG, JPG, GIF, SVG, WebP (max 2MB)
                       </p>
                     </>

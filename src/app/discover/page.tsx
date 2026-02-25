@@ -37,6 +37,7 @@ import {
   getCurrencyMeta,
 } from "@/lib/fairlaunch";
 import { formatAddress } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 type FairLaunchSummary = {
   pool: `0x${string}`;
@@ -519,6 +520,7 @@ function BondingCurvePoolCard({
   pool: BondingCurveSummary & { metadata?: TokenMetadata };
   chainId: number;
 }) {
+  const isGraduated = pool.state === 1;
   const stateConfig =
     bondingCurveStateLabels[pool.state] ?? bondingCurveStateLabels[0];
   const progress = Number(pool.progressBps) / 100;
@@ -527,49 +529,60 @@ function BondingCurvePoolCard({
   const detailHref = `/discover/${pool.pool}`;
 
   return (
-    <Card className="flex h-full flex-col overflow-hidden">
-      <CardHeader className="pb-3">
-        <Link href={detailHref} className="flex items-start gap-3 group">
-          {pool.metadata?.image_url ? (
-            <img
-              src={pool.metadata.image_url}
-              alt={pool.tokenName}
-              className="size-12 rounded-lg object-cover shrink-0 group-hover:ring-2 group-hover:ring-primary/50 transition-all"
-            />
-          ) : (
-            <div className="size-12 rounded-lg bg-muted flex items-center justify-center shrink-0 group-hover:ring-2 group-hover:ring-primary/50 transition-all">
-              <span className="text-lg font-bold text-muted-foreground">
-                {pool.tokenSymbol.slice(0, 2)}
-              </span>
-            </div>
-          )}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <CardTitle className="text-base font-semibold truncate group-hover:text-primary transition-colors">
-                  {pool.tokenName}
-                </CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  {pool.tokenSymbol}
-                </p>
-              </div>
-              <Badge variant={stateConfig.variant} className="shrink-0">
-                {stateConfig.label}
-              </Badge>
-            </div>
+    <Card
+      className={cn(
+        "group flex h-full flex-col gap-0 overflow-hidden pt-0",
+        isGraduated && "ring-1 ring-emerald-500/20",
+      )}
+    >
+      <Link href={detailHref} className="relative block overflow-hidden">
+        {pool.metadata?.image_url ? (
+          <img
+            src={pool.metadata.image_url}
+            alt={pool.tokenName}
+            className="aspect-[16/10] w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+          />
+        ) : (
+          <div className="flex aspect-[16/10] w-full items-center justify-center bg-gradient-to-br from-muted via-muted/60 to-muted">
+            <span className="text-3xl font-bold text-muted-foreground/60">
+              {pool.tokenSymbol}
+            </span>
           </div>
+        )}
+        <Badge
+          variant={stateConfig.variant}
+          className={cn(
+            "absolute bottom-2 right-2",
+            isGraduated &&
+              "border-emerald-500/20 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+          )}
+        >
+          {stateConfig.label}
+        </Badge>
+      </Link>
+      <div className="space-y-0.5 px-6 pt-4">
+        <Link href={detailHref}>
+          <p className="truncate text-base font-semibold transition-colors group-hover:text-primary">
+            {pool.tokenName}
+          </p>
+          <p className="text-sm text-muted-foreground">{pool.tokenSymbol}</p>
         </Link>
-      </CardHeader>
-      <CardContent className="flex flex-1 flex-col justify-between gap-4">
+      </div>
+      <CardContent className="flex flex-1 flex-col justify-between gap-4 pt-3">
         <div className="space-y-3">
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>Progress to graduation</span>
+              <span>{isGraduated ? "Graduated" : "Progress to graduation"}</span>
               <span>{progress.toFixed(1)}%</span>
             </div>
-            <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted/70 ring-1 ring-border/40">
+            <div className="h-4 w-full overflow-hidden rounded-full bg-muted/70 ring-1 ring-border/40">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-primary/65 via-primary to-primary/75 shadow-sm shadow-primary/40 transition-all duration-500 ease-out"
+                className={cn(
+                  "h-full rounded-full shadow-sm transition-all duration-500 ease-out",
+                  isGraduated
+                    ? "bg-gradient-to-r from-emerald-500/65 via-emerald-500 to-emerald-500/75 shadow-emerald-500/40"
+                    : "bg-gradient-to-r from-primary/65 via-primary to-primary/75 shadow-primary/40",
+                )}
                 style={{ width: `${Math.min(progress, 100)}%` }}
               />
             </div>
@@ -589,10 +602,15 @@ function BondingCurvePoolCard({
             </div>
           </div>
         </div>
-        <Button asChild className="w-full">
+        <Button
+          asChild
+          size="lg"
+          variant={isGraduated ? "secondary" : "default"}
+          className="w-full"
+        >
           <Link href={detailHref}>
             <TrendingUp className="mr-1.5 size-4" />
-            Trade
+            {isGraduated ? "View" : "Trade"}
           </Link>
         </Button>
       </CardContent>
@@ -618,7 +636,8 @@ function FairLaunchCard({
   const endsIn = end.getTime() > now ? formatRelative(end) : "Ended";
 
   return (
-    <Card className="flex h-full flex-col">
+    <Card className="flex h-full flex-col overflow-hidden">
+      <div className="h-3 bg-gradient-to-r from-primary/60 via-primary to-primary/60" />
       <CardHeader className="space-y-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-semibold">
@@ -658,10 +677,10 @@ function FairLaunchCard({
           />
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button asChild className="flex-1">
+          <Button asChild size="lg" className="flex-1">
             <Link href={`/fair-launch/${launch.pool}`}>View launch</Link>
           </Button>
-          <Button asChild variant="outline">
+          <Button asChild size="lg" variant="outline">
             <a
               href={addressUrl(chainId, launch.pool)}
               target="_blank"

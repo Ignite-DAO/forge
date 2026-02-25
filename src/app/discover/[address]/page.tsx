@@ -13,16 +13,6 @@ import {
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  Tooltip as RechartsTooltip,
-  ReferenceLine,
-  ResponsiveContainer,
-  XAxis,
-  YAxis,
-} from "recharts";
 import { toast } from "sonner";
 import { formatUnits, parseUnits } from "viem";
 import {
@@ -62,16 +52,6 @@ type TokenMetadata = {
   telegram: string | null;
 };
 
-type CurveSnapshot = {
-  currentPrice: bigint;
-  virtualTokenReserve: bigint;
-  virtualZilReserve: bigint;
-  realZilReserve: bigint;
-  tradingFeePercent: bigint;
-  k: bigint;
-  feesCollected: bigint;
-};
-
 const stateLabels: Record<
   number,
   { label: string; variant: "default" | "secondary" }
@@ -81,32 +61,9 @@ const stateLabels: Record<
 };
 
 const REFETCH_INTERVAL = 10000;
-const BPS_DENOMINATOR = 10_000n;
-const ONE_ETHER = 1_000_000_000_000_000_000n;
-const SAMPLE_STEPS_BPS = [10n, 50n, 100n, 250n, 500n] as const;
-const PRICE_MOVE_UP_BPS = [1000n, 2500n, 5000n, 10000n] as const;
-const PRICE_MOVE_DOWN_BPS = [1000n, 2500n, 5000n] as const;
-const BUY_SAMPLE_MIN = 25n * ONE_ETHER;
-const BUY_SAMPLE_MAX = 100_000n * ONE_ETHER;
-const SELL_SAMPLE_MIN = 10_000n * ONE_ETHER;
-const SELL_SAMPLE_MAX = 50_000_000n * ONE_ETHER;
-const FIXED_EXECUTION_ZIL_INPUTS = [
-  10n * ONE_ETHER,
-  100n * ONE_ETHER,
-  1_000n * ONE_ETHER,
-] as const;
-const CURVE_MAP_BUY_STEPS_BPS = [500n, 1000n, 2500n, 5000n, 10_000n] as const;
-const CURVE_MAP_SELL_STEPS_BPS = [500n, 1000n, 2500n, 5000n, 10_000n] as const;
-const ROUND_TRIP_ZIL_INPUTS = [
-  10n * ONE_ETHER,
-  100n * ONE_ETHER,
-  1_000n * ONE_ETHER,
-] as const;
-const WALLET_EXIT_BPS = [2500n, 5000n, 10_000n] as const;
 
-// Contract minimum amounts
-const MIN_BUY_AMOUNT = 0.001; // 0.001 ZIL
-const MIN_SELL_TOKENS = 0.001; // 0.001 tokens (1e15 wei)
+const MIN_BUY_AMOUNT = 0.001;
+const MIN_SELL_TOKENS = 0.001;
 
 export default function BondingCurvePoolPage() {
   const params = useParams<{ address: string }>();
@@ -418,158 +375,6 @@ export default function BondingCurvePoolPage() {
     ? (stateLabels[pool.state] ?? stateLabels[0])
     : stateLabels[0];
   const progress = pool ? Number(pool.progressBps) / 100 : 0;
-  const curveInsights = useMemo(() => {
-    if (!pool) return null;
-
-    const feeNumerator = BPS_DENOMINATOR - pool.tradingFeePercent;
-    const targetVzSquared =
-      pool.totalSupply > 0n
-        ? (pool.graduationMarketCap * pool.k) / pool.totalSupply
-        : 0n;
-    const targetVz = sqrtCeilBigInt(targetVzSquared);
-    const requiredNetZil =
-      targetVz > pool.virtualZilReserve
-        ? targetVz - pool.virtualZilReserve
-        : 0n;
-    const estimatedZilToGraduate =
-      requiredNetZil > 0n && feeNumerator > 0n
-        ? ceilDiv(requiredNetZil * BPS_DENOMINATOR, feeNumerator)
-        : 0n;
-    const targetVt = targetVz > 0n ? pool.k / targetVz : 0n;
-    const tokensToGraduate =
-      pool.virtualTokenReserve > targetVt
-        ? pool.virtualTokenReserve - targetVt
-        : 0n;
-
-    const priceMoveCost = PRICE_MOVE_UP_BPS.map((moveBps) => {
-      const targetPrice =
-        pool.currentPrice + (pool.currentPrice * moveBps) / BPS_DENOMINATOR;
-      const zilRequired =
-        targetPrice > pool.currentPrice
-          ? estimateGrossZilForTargetPrice(pool, targetPrice)
-          : 0n;
-      return {
-        id: `up-${moveBps.toString()}`,
-        moveBps,
-        targetPrice,
-        zilRequired,
-      };
-    });
-
-    const availableSellLiquidity = pool.realZilReserve + pool.feesCollected;
-    const sellLiquidityCoverageBps =
-      pool.virtualZilReserve > 0n
-        ? (availableSellLiquidity * BPS_DENOMINATOR) / pool.virtualZilReserve
-        : 0n;
-    const sellLiquidityCoveragePct = Number(sellLiquidityCoverageBps) / 100;
-
-    const maxSellableNow = findMaxSellableTokens(pool, pool.tokensSold);
-
-    const curveMapBuyAnchor =
-      estimatedZilToGraduate > 0n
-        ? estimatedZilToGraduate
-        : pool.marketCap > 0n
-          ? pool.marketCap / 5n
-          : 1_000n * ONE_ETHER;
-    const curveMapBuyInputs = buildAdaptiveSamples(
-      curveMapBuyAnchor,
-      10n * ONE_ETHER,
-      BUY_SAMPLE_MAX,
-      CURVE_MAP_BUY_STEPS_BPS,
-    );
-
-    const curveMapSellInputs =
-      pool.tokensSold > 0n
-        ? CURVE_MAP_SELL_STEPS_BPS.map(
-            (stepBps) => (pool.tokensSold * stepBps) / BPS_DENOMINATOR,
-          ).filter((value, index, values) => {
-            return (
-              value > 0n &&
-              value <= pool.tokensSold &&
-              values.indexOf(value) === index
-            );
-          })
-        : [];
-
-    const currentPriceValue = toUnitNumber(pool.currentPrice);
-    const buyCurvePoints = curveMapBuyInputs
-      .map((zilIn) => {
-        const result = simulateBuy(pool, zilIn);
-        if (!result) return null;
-        return {
-          deltaZil: toUnitNumber(zilIn),
-          buyPrice: toUnitNumber(result.postPrice),
-          sellPrice: null,
-        };
-      })
-      .filter((point): point is NonNullable<typeof point> => {
-        return (
-          point !== null &&
-          Number.isFinite(point.deltaZil) &&
-          Number.isFinite(point.buyPrice)
-        );
-      });
-
-    const sellCurvePoints = curveMapSellInputs
-      .map((tokensIn) => {
-        const result = simulateSell(pool, tokensIn);
-        if (!result) return null;
-        return {
-          deltaZil: -toUnitNumber(result.zilOut),
-          buyPrice: null,
-          sellPrice: toUnitNumber(result.postPrice),
-        };
-      })
-      .filter((point): point is NonNullable<typeof point> => {
-        return (
-          point !== null &&
-          Number.isFinite(point.deltaZil) &&
-          Number.isFinite(point.sellPrice)
-        );
-      });
-
-    const curveMapData = [
-      ...sellCurvePoints,
-      {
-        deltaZil: 0,
-        buyPrice: currentPriceValue,
-        sellPrice: currentPriceValue,
-      },
-      ...buyCurvePoints,
-    ].sort((a, b) => a.deltaZil - b.deltaZil);
-    const graduationDeltaZil =
-      estimatedZilToGraduate > 0n ? toUnitNumber(estimatedZilToGraduate) : null;
-
-    const priceTargetMarkers = priceMoveCost.map((row) => ({
-      id: row.id,
-      label: `+${formatBps(row.moveBps)}%`,
-      price: toUnitNumber(row.targetPrice),
-    }));
-
-    const maxSellableCoverageBps =
-      pool.tokensSold > 0n
-        ? (maxSellableNow * BPS_DENOMINATOR) / pool.tokensSold
-        : 0n;
-    const maxSellableCoveragePct = Number(maxSellableCoverageBps) / 100;
-
-    return {
-      estimatedZilToGraduate,
-      tokensToGraduate,
-      priceTargetMarkers: priceMoveCost.map((row) => ({
-        id: row.id,
-        label: `+${formatBps(row.moveBps)}%`,
-        price: toUnitNumber(row.targetPrice),
-      })),
-      availableSellLiquidity,
-      sellLiquidityCoverageBps,
-      maxSellableNow,
-      curveMapData,
-      graduationDeltaZil,
-      sellLiquidityCoveragePct,
-      maxSellableCoverageBps,
-      maxSellableCoveragePct,
-    };
-  }, [pool]);
 
   return (
     <div className="space-y-6 pb-10">
@@ -692,295 +497,64 @@ export default function BondingCurvePoolPage() {
                 </CardContent>
               </Card>
 
-              {curveInsights && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Curve outlook</CardTitle>
-                    <CardDescription>
-                      Estimates from current reserves and fee settings to help
-                      size trades before you execute
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <p className="text-sm text-muted-foreground">
-                      State-based model output only. No recent-volume dependency.
-                    </p>
-
-                    <div className="rounded-lg border bg-muted/20 p-3">
-                      <div className="mb-2 flex items-center justify-between">
-                        <h4 className="text-sm font-medium">Curve map</h4>
-                        <span className="text-[11px] text-muted-foreground">
-                          Net ZIL flow vs spot price
-                        </span>
-                      </div>
-                      <div className="h-64 w-full rounded-md border bg-background/70 p-2">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart
-                            data={curveInsights.curveMapData}
-                            margin={{ top: 8, right: 12, left: 8, bottom: 8 }}
-                          >
-                            <CartesianGrid
-                              strokeDasharray="3 3"
-                              stroke="var(--border)"
-                            />
-                            <XAxis
-                              type="number"
-                              dataKey="deltaZil"
-                              tickFormatter={(value) => formatCompactNumber(value)}
-                              tick={{
-                                fontSize: 11,
-                                fill: "var(--muted-foreground)",
-                              }}
-                              stroke="var(--muted-foreground)"
-                              label={{
-                                value: "Net ZIL flow",
-                                position: "insideBottom",
-                                offset: -4,
-                                style: {
-                                  fontSize: 11,
-                                  fill: "var(--muted-foreground)",
-                                },
-                              }}
-                            />
-                            <YAxis
-                              type="number"
-                              tickFormatter={(value) => formatPriceTick(value)}
-                              tick={{
-                                fontSize: 11,
-                                fill: "var(--muted-foreground)",
-                              }}
-                              width={72}
-                              stroke="var(--muted-foreground)"
-                              label={{
-                                value: "Price (ZIL)",
-                                angle: -90,
-                                position: "insideLeft",
-                                style: {
-                                  fontSize: 11,
-                                  fill: "var(--muted-foreground)",
-                                },
-                              }}
-                            />
-                            <RechartsTooltip
-                              contentStyle={{
-                                backgroundColor: "var(--popover)",
-                                border: "1px solid var(--border)",
-                                borderRadius: "8px",
-                                color: "var(--popover-foreground)",
-                              }}
-                              labelStyle={{
-                                color: "var(--muted-foreground)",
-                                fontSize: "12px",
-                              }}
-                              itemStyle={{
-                                color: "var(--popover-foreground)",
-                                fontSize: "12px",
-                              }}
-                              formatter={(value, name) => {
-                                const numericValue =
-                                  typeof value === "number"
-                                    ? value
-                                    : Number(value ?? 0);
-                                const label =
-                                  name === "buyPrice"
-                                    ? "Buy path price"
-                                    : "Sell path price";
-                                return [`${formatPriceTick(numericValue)} ZIL`, label];
-                              }}
-                              labelFormatter={(label) => {
-                                const numericLabel =
-                                  typeof label === "number"
-                                    ? label
-                                    : Number(label ?? 0);
-                                const signedLabel =
-                                  numericLabel >= 0
-                                    ? `+${formatCompactNumber(numericLabel)}`
-                                    : formatCompactNumber(numericLabel);
-                                return `Net flow: ${signedLabel} ZIL`;
-                              }}
-                            />
-                            <ReferenceLine
-                              x={0}
-                              stroke="var(--muted-foreground)"
-                              strokeDasharray="4 4"
-                            />
-                            {curveInsights.graduationDeltaZil != null && (
-                              <ReferenceLine
-                                x={curveInsights.graduationDeltaZil}
-                                stroke="var(--primary)"
-                                strokeDasharray="5 5"
-                              />
-                            )}
-                            {curveInsights.priceTargetMarkers.map((marker) => (
-                              <ReferenceLine
-                                key={marker.id}
-                                y={marker.price}
-                                stroke="var(--muted-foreground)"
-                                strokeDasharray="2 6"
-                              />
-                            ))}
-                            <Line
-                              type="monotone"
-                              dataKey="sellPrice"
-                              name="sellPrice"
-                              stroke="#ef4444"
-                              strokeWidth={2}
-                              dot={{ r: 2.5 }}
-                              connectNulls={false}
-                              isAnimationActive={false}
-                            />
-                            <Line
-                              type="monotone"
-                              dataKey="buyPrice"
-                              name="buyPrice"
-                              stroke="#22c55e"
-                              strokeWidth={2}
-                              dot={{ r: 2.5 }}
-                              connectNulls={false}
-                              isAnimationActive={false}
-                            />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
-                      <p className="mt-2 text-[11px] text-muted-foreground">
-                        Red line models sells from current state, green models
-                        buys. Vertical dashed line marks graduation estimate.
+              <Card>
+                <CardHeader>
+                  <CardTitle>How bonding curves work</CardTitle>
+                  <CardDescription>
+                    Tokens launch with automatic pricing &mdash; no order books
+                    needed
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex gap-4 rounded-lg border bg-muted/30 p-4">
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <TrendingUp className="size-5" />
+                    </span>
+                    <div>
+                      <p className="font-medium">Buy &rarr; price goes up</p>
+                      <p className="mt-0.5 text-sm text-muted-foreground">
+                        Each purchase moves the price higher along a
+                        mathematical curve. Earlier buyers get a lower price.
                       </p>
                     </div>
-
-                    <div className="rounded-lg border bg-muted/20 p-3">
-                      <div className="mb-2 flex items-center justify-between">
-                        <h4 className="text-sm font-medium">Liquidity runway</h4>
-                        <span className="text-[11px] text-muted-foreground">
-                          Execution capacity right now
-                        </span>
-                      </div>
-                      <div className="space-y-3">
-                        <div className="space-y-1.5">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="text-muted-foreground">
-                              Sell liquidity coverage
-                            </span>
-                            <span className="font-semibold">
-                              {formatBps(curveInsights.sellLiquidityCoverageBps)}%
-                            </span>
-                          </div>
-                          <div className="h-2.5 overflow-hidden rounded-full bg-muted">
-                            <div
-                              className="h-full rounded-full bg-emerald-500/80"
-                              style={{
-                                width: `${Math.max(
-                                  2,
-                                  Math.min(
-                                    100,
-                                    curveInsights.sellLiquidityCoveragePct,
-                                  ),
-                                )}%`,
-                              }}
-                            />
-                          </div>
-                          <p className="text-[11px] text-muted-foreground">
-                            {formatAmount(curveInsights.availableSellLiquidity)}{" "}
-                            available vs virtual reserve baseline
-                          </p>
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="text-muted-foreground">
-                              Max sellable token coverage
-                            </span>
-                            <span className="font-semibold">
-                              {formatBps(curveInsights.maxSellableCoverageBps)}%
-                            </span>
-                          </div>
-                          <div className="h-2.5 overflow-hidden rounded-full bg-muted">
-                            <div
-                              className="h-full rounded-full bg-amber-500/80"
-                              style={{
-                                width: `${Math.max(
-                                  2,
-                                  Math.min(
-                                    100,
-                                    curveInsights.maxSellableCoveragePct,
-                                  ),
-                                )}%`,
-                              }}
-                            />
-                          </div>
-                          <p className="text-[11px] text-muted-foreground">
-                            {formatAmount(curveInsights.maxSellableNow)}{" "}
-                            {pool.tokenSymbol} can be sold now
-                          </p>
-                        </div>
-                      </div>
+                  </div>
+                  <div className="flex gap-4 rounded-lg border bg-muted/30 p-4">
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <TrendingDown className="size-5" />
+                    </span>
+                    <div>
+                      <p className="font-medium">Sell &rarr; price goes down</p>
+                      <p className="mt-0.5 text-sm text-muted-foreground">
+                        Selling returns tokens to the pool and you receive ZIL.
+                        The price adjusts down accordingly.
+                      </p>
                     </div>
-
-                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                      <div className="rounded-md border bg-muted/30 px-3 py-2">
-                        <p className="text-[11px] text-muted-foreground">
-                          Est. ZIL to graduate
-                        </p>
-                        <p className="text-sm font-semibold">
-                          {formatAmount(curveInsights.estimatedZilToGraduate)} ZIL
-                        </p>
-                      </div>
-                      <div className="rounded-md border bg-muted/30 px-3 py-2">
-                        <p className="text-[11px] text-muted-foreground">
-                          Tokens to graduate
-                        </p>
-                        <p className="text-sm font-semibold">
-                          {formatAmount(curveInsights.tokensToGraduate)}{" "}
-                          {pool.tokenSymbol}
-                        </p>
-                      </div>
-                      <div className="rounded-md border bg-muted/30 px-3 py-2">
-                        <p className="text-[11px] text-muted-foreground">
-                          Available sell liquidity
-                        </p>
-                        <p className="text-sm font-semibold">
-                          {formatAmount(curveInsights.availableSellLiquidity)} ZIL
-                        </p>
-                      </div>
-                      <div className="rounded-md border bg-muted/30 px-3 py-2">
-                        <p className="text-[11px] text-muted-foreground">
-                          Max sellable now
-                        </p>
-                        <p className="text-sm font-semibold">
-                          {formatAmount(curveInsights.maxSellableNow)}{" "}
-                          {pool.tokenSymbol}
-                        </p>
-                      </div>
+                  </div>
+                  <div className="flex gap-4 rounded-lg border bg-muted/30 p-4">
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500">
+                      <ExternalLink className="size-5" />
+                    </span>
+                    <div>
+                      <p className="font-medium">
+                        Graduate to PlunderSwap
+                      </p>
+                      <p className="mt-0.5 text-sm text-muted-foreground">
+                        At{" "}
+                        {Number(
+                          formatUnits(pool.graduationMarketCap, 18),
+                        ).toLocaleString()}{" "}
+                        ZIL market cap the token graduates with full DEX
+                        liquidity.
+                      </p>
                     </div>
-
-                    <div className="rounded-lg border bg-muted/20 p-3">
-                      <div className="mb-2 flex items-center justify-between">
-                        <h4 className="text-sm font-medium">
-                          Price move checkpoints
-                        </h4>
-                        <span className="text-[11px] text-muted-foreground">
-                          Relative to current spot
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {curveInsights.priceTargetMarkers.map((marker) => (
-                          <div
-                            key={marker.id}
-                            className="rounded-md border bg-background/60 px-2.5 py-1.5 text-xs"
-                          >
-                            <span className="text-muted-foreground">
-                              {marker.label}:
-                            </span>{" "}
-                            <span className="font-medium">
-                              {formatPriceTick(marker.price)} ZIL
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+                  </div>
+                  <p className="pt-1 text-xs text-muted-foreground">
+                    A {Number(pool.tradingFeePercent) / 100}% fee applies to
+                    each trade. No time limit &mdash; the curve stays open
+                    until graduation.
+                  </p>
+                </CardContent>
+              </Card>
             </div>
 
             <div className="space-y-6">
@@ -1343,251 +917,3 @@ function DetailRow({
   );
 }
 
-function formatAmount(amount: bigint) {
-  return Number(formatUnits(amount, 18)).toLocaleString(undefined, {
-    maximumFractionDigits: 4,
-  });
-}
-
-function toUnitNumber(amount: bigint) {
-  return Number(formatUnits(amount, 18));
-}
-
-function formatWholeAmount(amount: bigint) {
-  return Number(formatUnits(amount, 18)).toLocaleString(undefined, {
-    maximumFractionDigits: 0,
-  });
-}
-
-function formatBps(value: bigint) {
-  return (Number(value) / 100).toFixed(2);
-}
-
-function formatCompactNumber(value: number) {
-  if (!Number.isFinite(value)) return "0";
-  return value.toLocaleString(undefined, {
-    notation: "compact",
-    maximumFractionDigits: 2,
-  });
-}
-
-function formatPriceTick(value: number) {
-  if (!Number.isFinite(value)) return "0";
-  if (value >= 1) {
-    return value.toLocaleString(undefined, { maximumFractionDigits: 3 });
-  }
-  if (value >= 0.01) {
-    return value.toLocaleString(undefined, { maximumFractionDigits: 5 });
-  }
-  return value.toLocaleString(undefined, { maximumFractionDigits: 8 });
-}
-
-function formatSignedBps(value: bigint) {
-  const sign = value >= 0n ? "+" : "-";
-  const abs = value >= 0n ? value : -value;
-  return `${sign}${formatBps(abs)}`;
-}
-
-function formatMultiple(value: number | null) {
-  if (value == null || !Number.isFinite(value)) return "n/a";
-  return `${value.toFixed(2)}x`;
-}
-
-function clampBigInt(value: bigint, min: bigint, max: bigint) {
-  if (value < min) return min;
-  if (value > max) return max;
-  return value;
-}
-
-function buildAdaptiveSamples(
-  anchor: bigint,
-  min: bigint,
-  max: bigint,
-  steps: readonly bigint[],
-) {
-  const baseAnchor = anchor > 0n ? anchor : min;
-  const values: bigint[] = [];
-
-  for (const stepBps of steps) {
-    const candidate = clampBigInt(
-      (baseAnchor * stepBps) / BPS_DENOMINATOR,
-      min,
-      max,
-    );
-    if (!values.includes(candidate)) {
-      values.push(candidate);
-    }
-  }
-
-  const fallback = [
-    min,
-    clampBigInt(min * 4n, min, max),
-    clampBigInt(min * 20n, min, max),
-    clampBigInt(min * 100n, min, max),
-    max,
-  ];
-
-  for (const candidate of fallback) {
-    if (!values.includes(candidate)) {
-      values.push(candidate);
-    }
-    if (values.length >= steps.length) break;
-  }
-
-  values.sort((a, b) => {
-    if (a === b) return 0;
-    return a < b ? -1 : 1;
-  });
-
-  return values.slice(0, steps.length);
-}
-
-function ceilDiv(numerator: bigint, denominator: bigint) {
-  if (denominator === 0n) return 0n;
-  return (numerator + denominator - 1n) / denominator;
-}
-
-function sqrtBigInt(value: bigint) {
-  if (value <= 0n) return 0n;
-  let x0 = value;
-  let x1 = (value + 1n) / 2n;
-  while (x1 < x0) {
-    x0 = x1;
-    x1 = (x1 + value / x1) / 2n;
-  }
-  return x0;
-}
-
-function sqrtCeilBigInt(value: bigint) {
-  if (value <= 0n) return 0n;
-  const floor = sqrtBigInt(value);
-  return floor * floor === value ? floor : floor + 1n;
-}
-
-function estimateGrossZilForTargetPrice(
-  pool: CurveSnapshot,
-  targetPrice: bigint,
-) {
-  if (targetPrice <= pool.currentPrice) return 0n;
-  const feeNumerator = BPS_DENOMINATOR - pool.tradingFeePercent;
-  if (feeNumerator <= 0n) return null;
-  const targetVzSquared = (targetPrice * pool.k) / ONE_ETHER;
-  const targetVz = sqrtCeilBigInt(targetVzSquared);
-  if (targetVz <= pool.virtualZilReserve) return 0n;
-  const requiredNetZil = targetVz - pool.virtualZilReserve;
-  return ceilDiv(requiredNetZil * BPS_DENOMINATOR, feeNumerator);
-}
-
-function estimateTokensForTargetDownPrice(
-  pool: CurveSnapshot,
-  targetPrice: bigint,
-) {
-  if (targetPrice <= 0n || targetPrice >= pool.currentPrice) return null;
-  const targetVtSquared = ceilDiv(pool.k * ONE_ETHER, targetPrice);
-  const targetVt = sqrtCeilBigInt(targetVtSquared);
-  if (targetVt <= pool.virtualTokenReserve) return 0n;
-  return targetVt - pool.virtualTokenReserve;
-}
-
-function findMaxSellableTokens(pool: CurveSnapshot, tokensCap: bigint) {
-  if (tokensCap <= 0n) return 0n;
-  let low = 0n;
-  let high = tokensCap;
-
-  while (low < high) {
-    const mid = (low + high + 1n) / 2n;
-    if (simulateSell(pool, mid)) {
-      low = mid;
-    } else {
-      high = mid - 1n;
-    }
-  }
-
-  return low;
-}
-
-function simulateRoundTrip(pool: CurveSnapshot, zilIn: bigint) {
-  const buyResult = simulateBuy(pool, zilIn);
-  if (!buyResult) return null;
-
-  const zilAfterFee = zilIn - buyResult.fee;
-  const nextVirtualZilReserve = pool.virtualZilReserve + zilAfterFee;
-  if (nextVirtualZilReserve <= 0n) return null;
-  const nextVirtualTokenReserve = pool.k / nextVirtualZilReserve;
-  if (nextVirtualTokenReserve <= 0n) return null;
-  const nextPrice =
-    (nextVirtualZilReserve * ONE_ETHER) / nextVirtualTokenReserve;
-
-  const nextPool: CurveSnapshot = {
-    ...pool,
-    currentPrice: nextPrice,
-    virtualTokenReserve: nextVirtualTokenReserve,
-    virtualZilReserve: nextVirtualZilReserve,
-    realZilReserve: pool.realZilReserve + zilAfterFee,
-    feesCollected: pool.feesCollected + buyResult.fee,
-  };
-
-  const sellResult = simulateSell(nextPool, buyResult.tokensOut);
-  if (!sellResult) return null;
-
-  const loss = zilIn > sellResult.zilOut ? zilIn - sellResult.zilOut : 0n;
-  const lossBps = zilIn > 0n ? (loss * BPS_DENOMINATOR) / zilIn : 0n;
-
-  return {
-    tokensBought: buyResult.tokensOut,
-    zilBack: sellResult.zilOut,
-    loss,
-    lossBps,
-  };
-}
-
-function simulateBuy(pool: CurveSnapshot, zilIn: bigint) {
-  if (zilIn <= 0n) return null;
-  const fee = (zilIn * pool.tradingFeePercent) / BPS_DENOMINATOR;
-  const zilAfterFee = zilIn - fee;
-  if (zilAfterFee <= 0n) return null;
-  const newVirtualZilReserve = pool.virtualZilReserve + zilAfterFee;
-  if (newVirtualZilReserve <= 0n) return null;
-  const newVirtualTokenReserve = pool.k / newVirtualZilReserve;
-  if (newVirtualTokenReserve >= pool.virtualTokenReserve) return null;
-  const tokensOut = pool.virtualTokenReserve - newVirtualTokenReserve;
-  if (tokensOut <= 0n) return null;
-  const postPrice = (newVirtualZilReserve * ONE_ETHER) / newVirtualTokenReserve;
-  const averagePrice = (zilIn * ONE_ETHER) / tokensOut;
-  const slippageBps =
-    pool.currentPrice > 0n
-      ? (averagePrice * BPS_DENOMINATOR) / pool.currentPrice - BPS_DENOMINATOR
-      : 0n;
-  return {
-    tokensOut,
-    fee,
-    slippageBps,
-    postPrice,
-  };
-}
-
-function simulateSell(pool: CurveSnapshot, tokensIn: bigint) {
-  if (tokensIn <= 0n) return null;
-  const newVirtualTokenReserve = pool.virtualTokenReserve + tokensIn;
-  if (newVirtualTokenReserve <= 0n) return null;
-  const newVirtualZilReserve = pool.k / newVirtualTokenReserve;
-  if (newVirtualZilReserve >= pool.virtualZilReserve) return null;
-  const grossProceeds = pool.virtualZilReserve - newVirtualZilReserve;
-  const available = pool.realZilReserve + pool.feesCollected;
-  if (grossProceeds > available) return null;
-  const postPrice = (newVirtualZilReserve * ONE_ETHER) / newVirtualTokenReserve;
-  const fee = (grossProceeds * pool.tradingFeePercent) / BPS_DENOMINATOR;
-  const zilOut = grossProceeds - fee;
-  if (zilOut <= 0n) return null;
-  const averagePrice = (zilOut * ONE_ETHER) / tokensIn;
-  const slippageBps =
-    pool.currentPrice > 0n
-      ? BPS_DENOMINATOR - (averagePrice * BPS_DENOMINATOR) / pool.currentPrice
-      : 0n;
-  return {
-    zilOut,
-    fee,
-    slippageBps,
-    postPrice,
-  };
-}
