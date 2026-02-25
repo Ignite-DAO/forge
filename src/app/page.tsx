@@ -506,7 +506,7 @@ export default function Home() {
           The launchpad for Zilliqa
         </h1>
         <p className="mx-auto mt-4 max-w-lg text-lg text-muted-foreground">
-          Create tokens, launch bonding curves, run fair raises, and airdrop — all in one place.
+          Create tokens, run fair launches, and bootstrap liquidity. Everything you need to go live on Zilliqa.
         </p>
         <div className="mt-8 flex items-center justify-center gap-3">
           <Button asChild size="lg" className="rounded-full text-base font-semibold">
