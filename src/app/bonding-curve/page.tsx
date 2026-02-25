@@ -14,7 +14,6 @@ import {
   useWriteContract,
 } from "wagmi";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -250,15 +249,13 @@ export default function BondingCurveLaunchPage() {
             Launch tokens with automatic liquidity via bonding curves
           </p>
         </div>
-        <Card className="border border-destructive">
-          <CardHeader>
-            <CardTitle>Factory not configured</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Set `NEXT_PUBLIC_BONDING_CURVE_FACTORY_{chainId}` to enable
-              bonding curve pools.
-            </p>
-          </CardHeader>
-        </Card>
+        <div className="rounded-2xl border border-destructive bg-card p-6 max-w-2xl mx-auto">
+          <h2 className="text-lg font-semibold">Factory not configured</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Set `NEXT_PUBLIC_BONDING_CURVE_FACTORY_{chainId}` to enable bonding
+            curve pools.
+          </p>
+        </div>
       </div>
     );
   }
@@ -272,38 +269,41 @@ export default function BondingCurveLaunchPage() {
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl font-bold">Launch a token</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Create a new token with an instant bonding curve. Graduates to
-            PlunderSwap at target market cap.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {createdPool ? (
-            <div className="rounded-lg border bg-muted/40 p-4 space-y-3">
-              <p className="text-sm font-medium text-green-600 dark:text-green-400">
-                Token created successfully!
-              </p>
-              <Button asChild>
-                <Link href={`/discover/${createdPool}`}>View your token</Link>
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setCreatedPool(null)}
-              >
-                Create another
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {/* Image Upload */}
+      <div className="rounded-2xl bg-card p-6 max-w-2xl mx-auto">
+        <h2 className="text-lg font-semibold">Launch a token</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Create a new token with an instant bonding curve. Graduates to
+          PlunderSwap at target market cap.
+        </p>
+
+        {createdPool ? (
+          <div className="border-t pt-5 mt-5 space-y-3">
+            <p className="text-sm font-medium text-green-600 dark:text-green-400">
+              Token created successfully!
+            </p>
+            <Button
+              asChild
+              className="w-full rounded-full font-semibold"
+              size="lg"
+            >
+              <Link href={`/discover/${createdPool}`}>View your token</Link>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setCreatedPool(null)}
+            >
+              Create another
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Image Upload */}
+            <div className="border-t pt-5 mt-5">
               <div className="mx-auto max-w-sm space-y-2">
                 <Label>Token image (optional)</Label>
                 <div
-                  className={`relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-12 transition-colors cursor-pointer ${
+                  className={`relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 transition-colors cursor-pointer ${
                     isDragging
                       ? "border-foreground bg-muted/50"
                       : "border-border hover:bg-muted/50"
@@ -354,83 +354,86 @@ export default function BondingCurveLaunchPage() {
                   )}
                 </div>
               </div>
+            </div>
 
-              {/* Name */}
-              <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="My Awesome Token"
-                  maxLength={64}
-                />
-              </div>
-
-              {/* Symbol */}
-              <div className="space-y-2">
-                <Label htmlFor="symbol">Symbol</Label>
-                <Input
-                  id="symbol"
-                  value={symbol}
-                  onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-                  placeholder="AWESOME"
-                  maxLength={12}
-                />
-              </div>
-
-              {/* Description */}
-              <div className="space-y-2">
-                <Label htmlFor="description">Description (optional)</Label>
-                <Textarea
-                  id="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="What's your token about?"
-                  rows={3}
-                  maxLength={500}
-                />
-              </div>
-
-              {/* Social Links */}
-              <div className="space-y-4">
-                <Label className="text-muted-foreground">
-                  Links (optional)
-                </Label>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <Globe className="size-4 text-muted-foreground shrink-0" />
-                    <Input
-                      value={website}
-                      onChange={(e) => setWebsite(e.target.value)}
-                      placeholder="https://yourwebsite.com"
-                    />
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <svg
-                      className="size-4 text-muted-foreground shrink-0"
-                      viewBox="0 0 24 24"
-                      fill="currentColor"
-                    >
-                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                    </svg>
-                    <Input
-                      value={twitter}
-                      onChange={(e) => setTwitter(e.target.value)}
-                      placeholder="@handle"
-                    />
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Send className="size-4 text-muted-foreground shrink-0" />
-                    <Input
-                      value={telegram}
-                      onChange={(e) => setTelegram(e.target.value)}
-                      placeholder="t.me/yourchannel"
-                    />
-                  </div>
+            {/* Name + Symbol */}
+            <div className="border-t pt-5 mt-5">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="name">Name</Label>
+                  <Input
+                    id="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="My Awesome Token"
+                    maxLength={64}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="symbol">Symbol</Label>
+                  <Input
+                    id="symbol"
+                    value={symbol}
+                    onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+                    placeholder="AWESOME"
+                    maxLength={12}
+                  />
                 </div>
               </div>
+            </div>
 
+            {/* Description */}
+            <div className="border-t pt-5 mt-5 space-y-1.5">
+              <Label htmlFor="description">Description (optional)</Label>
+              <Textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="What's your token about?"
+                rows={3}
+                maxLength={500}
+              />
+            </div>
+
+            {/* Social Links */}
+            <div className="border-t pt-5 mt-5 space-y-4">
+              <Label className="text-muted-foreground">Links (optional)</Label>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Globe className="size-4 text-muted-foreground shrink-0" />
+                  <Input
+                    value={website}
+                    onChange={(e) => setWebsite(e.target.value)}
+                    placeholder="https://yourwebsite.com"
+                  />
+                </div>
+                <div className="flex items-center gap-3">
+                  <svg
+                    className="size-4 text-muted-foreground shrink-0"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                  </svg>
+                  <Input
+                    value={twitter}
+                    onChange={(e) => setTwitter(e.target.value)}
+                    placeholder="@handle"
+                  />
+                </div>
+                <div className="flex items-center gap-3">
+                  <Send className="size-4 text-muted-foreground shrink-0" />
+                  <Input
+                    value={telegram}
+                    onChange={(e) => setTelegram(e.target.value)}
+                    placeholder="t.me/yourchannel"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Fee + Submit */}
+            <div className="border-t pt-5 mt-5 space-y-4">
               {Number(creationFee) > 0 && (
                 <p className="text-sm text-muted-foreground">
                   Creation fee: {creationFee} ZIL
@@ -455,9 +458,9 @@ export default function BondingCurveLaunchPage() {
                       : "Launch token"}
               </Button>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

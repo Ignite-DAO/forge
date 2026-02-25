@@ -15,7 +15,6 @@ import { z } from "zod";
 import { erc20Abi } from "@/abi/erc20";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -170,17 +169,14 @@ export default function AirdropPage() {
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl font-bold">
-            Batch distribution
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Paste CSV or a list of address,amount per line.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {!airdropper && (
+      <div className="rounded-2xl bg-card p-6 max-w-3xl mx-auto">
+        <h2 className="text-lg font-semibold">Batch distribution</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Paste CSV or a list of address,amount per line.
+        </p>
+
+        {!airdropper && (
+          <div className="mt-5">
             <Alert variant="destructive">
               <AlertTitle>Airdropper not configured</AlertTitle>
               <AlertDescription>
@@ -188,19 +184,22 @@ export default function AirdropPage() {
                 NEXT_PUBLIC_AIRDROPPER_ADDRESS_33101 for the active chain.
               </AlertDescription>
             </Alert>
-          )}
+          </div>
+        )}
 
+        {/* Token address + decimals */}
+        <div className="border-t pt-5 mt-5">
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="grid gap-1.5">
+            <div className="space-y-1.5">
               <Label htmlFor="token">Token address</Label>
               <Input id="token" placeholder="0x..." {...register("token")} />
               {errors.token && (
-                <p className="text-xs text-destructive mt-1">
+                <p className="text-xs text-destructive">
                   {errors.token.message}
                 </p>
               )}
             </div>
-            <div className="grid gap-1.5">
+            <div className="space-y-1.5">
               <Label>Decimals</Label>
               <Input
                 value={decimals?.toString() ?? ""}
@@ -209,88 +208,111 @@ export default function AirdropPage() {
               />
             </div>
           </div>
+        </div>
 
-          <div className="grid gap-1.5">
-            <Label htmlFor="rows">Recipients (address,amount)</Label>
-            <Textarea
-              id="rows"
-              rows={8}
-              className="p-4"
-              placeholder="0xabc...,100\n0xdef...,250"
-              {...register("rows")}
-            />
-            {errors.rows && (
-              <p className="text-xs text-destructive mt-1">
-                {errors.rows.message}
+        {/* Recipients textarea */}
+        <div className="border-t pt-5 mt-5 space-y-1.5">
+          <Label htmlFor="rows">Recipients (address,amount)</Label>
+          <Textarea
+            id="rows"
+            rows={8}
+            className="p-4"
+            placeholder="0xabc...,100\n0xdef...,250"
+            {...register("rows")}
+          />
+          {errors.rows && (
+            <p className="text-xs text-destructive">{errors.rows.message}</p>
+          )}
+        </div>
+
+        {/* Stats grid */}
+        <div className="border-t pt-5 mt-5">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                Rows
+              </p>
+              <p className="mt-1 text-sm font-medium">{rows.length}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                Total
+              </p>
+              <p className="mt-1 text-sm font-medium">
+                {nf().format(Number(total))} wei
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                Allowance
+              </p>
+              <p className="mt-1 text-sm font-medium">
+                {allowance ? allowance.toString() : "---"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                Fee
+              </p>
+              <p className="mt-1 text-sm font-medium">
+                {dropFee && dropFee > 0n
+                  ? `${nf().format(Number(tryFormatUnits(dropFee, 18)))} ZIL`
+                  : "---"}
+              </p>
+            </div>
+          </div>
+          {invalidRows.length > 0 && (
+            <p className="mt-3 text-xs text-destructive">
+              Invalid rows: {invalidRows.length}
+            </p>
+          )}
+        </div>
+
+        {/* Preview table */}
+        {rows.length > 0 && (
+          <div className="border-t pt-5 mt-5 overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Address</TableHead>
+                  <TableHead>Amount (human)</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.slice(0, 50).map((r, idx) => {
+                  const invalid =
+                    !/^0x[a-fA-F0-9]{40}$/.test(r.address) ||
+                    r.amount.trim() === "";
+                  return (
+                    <TableRow
+                      key={idx}
+                      className={invalid ? "bg-destructive/10" : undefined}
+                    >
+                      <TableCell className="font-mono text-xs">
+                        {r.address}
+                      </TableCell>
+                      <TableCell className="text-xs">{r.amount}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+            {rows.length > 50 && (
+              <p className="text-xs text-muted-foreground mt-2">
+                Showing first 50 of {rows.length} rows.
               </p>
             )}
           </div>
+        )}
 
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span className="rounded-lg border px-3 py-1.5">
-              Rows: {rows.length}
-            </span>
-            <span className="rounded-lg border px-3 py-1.5">
-              Total: {nf().format(Number(total))} wei
-            </span>
-            <span className="rounded-lg border px-3 py-1.5">
-              Allowance: {allowance ? allowance.toString() : "---"}
-            </span>
-            <span className="rounded-lg border px-3 py-1.5">
-              Fee:{" "}
-              {dropFee && dropFee > 0n
-                ? `${nf().format(Number(tryFormatUnits(dropFee, 18)))} ZIL`
-                : "---"}
-            </span>
-            {invalidRows.length > 0 && (
-              <span className="rounded-lg border border-destructive/50 bg-destructive/10 px-3 py-1.5 text-destructive">
-                Invalid rows: {invalidRows.length}
-              </span>
-            )}
-          </div>
-
-          {rows.length > 0 && (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Address</TableHead>
-                    <TableHead>Amount (human)</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.slice(0, 50).map((r, idx) => {
-                    const invalid =
-                      !/^0x[a-fA-F0-9]{40}$/.test(r.address) ||
-                      r.amount.trim() === "";
-                    return (
-                      <TableRow
-                        key={idx}
-                        className={invalid ? "bg-destructive/10" : undefined}
-                      >
-                        <TableCell className="font-mono text-xs">
-                          {r.address}
-                        </TableCell>
-                        <TableCell className="text-xs">{r.amount}</TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-              {rows.length > 50 && (
-                <p className="text-xs text-muted-foreground mt-2">
-                  Showing first 50 of {rows.length} rows.
-                </p>
-              )}
-            </div>
-          )}
-
-          <div className="flex gap-3 pt-2">
+        {/* Action buttons */}
+        <div className="border-t pt-5 mt-5 space-y-4">
+          <div className="flex gap-3">
             <Button
               type="button"
               variant="outline"
               size="lg"
-              className="rounded-full font-semibold"
+              className="flex-1 rounded-full font-semibold"
               disabled={
                 !ready || (allowance ?? BigInt(0)) >= total || isPending
               }
@@ -306,7 +328,7 @@ export default function AirdropPage() {
             <Button
               type="button"
               size="lg"
-              className="rounded-full font-semibold"
+              className="flex-1 rounded-full font-semibold"
               disabled={!ready || (allowance ?? BigInt(0)) < total || isPending}
               onClick={onAirdrop}
             >
@@ -329,8 +351,8 @@ export default function AirdropPage() {
               Airdrop completed.
             </p>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

@@ -494,8 +494,32 @@ export default function Home() {
 
   return (
     <div className="space-y-8 pb-12">
+      {/* Hero */}
+      <section className="relative isolate overflow-hidden rounded-3xl py-20 text-center">
+        <div className="pointer-events-none absolute inset-0 -z-10 hero-mesh" />
+        <div className="pointer-events-none absolute inset-0 -z-10 hero-grid opacity-[0.06] dark:opacity-[0.07]" />
+        <div className="pointer-events-none absolute inset-0 -z-10 hero-grain opacity-[0.30] dark:opacity-[0.18]" />
+        <div className="pointer-events-none absolute -z-10 hero-blob hero-blob-1" />
+        <div className="pointer-events-none absolute -z-10 hero-blob hero-blob-2" />
+        <div className="pointer-events-none absolute -z-10 hero-blob hero-blob-3" />
+        <h1 className="text-5xl font-extrabold tracking-tight sm:text-6xl">
+          The launchpad for Zilliqa
+        </h1>
+        <p className="mx-auto mt-4 max-w-lg text-lg text-muted-foreground">
+          Create tokens, launch bonding curves, run fair raises, and airdrop — all in one place.
+        </p>
+        <div className="mt-8 flex items-center justify-center gap-3">
+          <Button asChild size="lg" className="rounded-full text-base font-semibold">
+            <Link href="/bonding-curve">Launch a Token</Link>
+          </Button>
+          <Button asChild variant="outline" size="lg" className="rounded-full text-base font-semibold">
+            <Link href="/discover">Discover</Link>
+          </Button>
+        </div>
+      </section>
+
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">All Launches</h1>
+        <h2 className="text-3xl font-bold tracking-tight">All Launches</h2>
         <p className="mt-1 text-muted-foreground">
           Bonding curves and fair launches in one feed.
         </p>

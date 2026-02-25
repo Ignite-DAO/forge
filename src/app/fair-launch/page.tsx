@@ -17,13 +17,6 @@ import { useNetwork } from "@/providers/network";
 import { z } from "zod";
 import { erc20Abi } from "@/abi/erc20";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -34,12 +27,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { abis, getFairLaunchFactoryAddress } from "@/lib/contracts";
 import { addressUrl, txUrl } from "@/lib/explorer";
 import {
-  FAIR_LAUNCH_CURRENCIES,
   type FairLaunchCurrencyCode,
   FairLaunchCurrencyId,
   type FairLaunchRouterKindCode,
@@ -502,7 +493,7 @@ export default function FairLaunchPage() {
       case 0:
         return (
           <div className="space-y-5">
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label htmlFor="tokenAddress" className="text-sm font-medium">
                 Token address
               </Label>
@@ -524,26 +515,11 @@ export default function FairLaunchPage() {
                 </p>
               )}
             </div>
-            <div className="space-y-3">
+            <div className="space-y-1.5">
               <Label className="text-sm font-medium">Raise currency</Label>
-              <RadioGroup
-                value={currencyCode}
-                onValueChange={(value) =>
-                  setValue("currency", value as FormValues["currency"])
-                }
-                className="grid gap-3 sm:grid-cols-2"
-              >
-                {FAIR_LAUNCH_CURRENCIES.map((option) => (
-                  <RadioGroupItem key={option.code} value={option.code}>
-                    <div className="font-medium">{option.label}</div>
-                    <p className="text-xs text-muted-foreground">
-                      {option.code === "ZIL"
-                        ? "Raise in native ZIL with simple wallet contributions."
-                        : "Raise in canonical USDC for stable pricing."}
-                    </p>
-                  </RadioGroupItem>
-                ))}
-              </RadioGroup>
+              <p className="text-sm text-muted-foreground">
+                ZIL — Raise in native ZIL with simple wallet contributions.
+              </p>
             </div>
           </div>
         );
@@ -787,8 +763,10 @@ export default function FairLaunchPage() {
         return (
           <div className="space-y-5">
             <div>
-              <h3 className="font-medium">Token</h3>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                Token
+              </p>
+              <p className="mt-1 text-sm font-medium">
                 {tokenName ?? "—"} ({tokenSymbol ?? "—"}) ·{" "}
                 {tokenDecimals ?? "—"} decimals
               </p>
@@ -803,32 +781,47 @@ export default function FairLaunchPage() {
                 </a>
               )}
             </div>
-            <Separator />
-            <div className="grid gap-4 md:grid-cols-2">
-              <SummaryStat
-                label="Tokens for sale"
-                value={
-                  parsedSaleAmount != null && tokenDecimals != null
-                    ? `${formatTokenAmount(parsedSaleAmount, tokenDecimals)} ${tokenSymbol ?? "TOKEN"}`
-                    : "—"
-                }
-              />
-              <SummaryStat
-                label="Liquidity lock"
-                value={
-                  lockDurationValue === "max"
-                    ? "Indefinite"
-                    : `${Number(lockDurationValue) / (24 * 60 * 60)} days`
-                }
-              />
-              <SummaryStat
-                label="Soft cap"
-                value={`${softCapValue} ${currencyMeta.symbol}`}
-              />
-              <SummaryStat label="Liquidity %" value={`${liquidityPercent}%`} />
+            <div className="border-t pt-5 mt-5">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                    Tokens for sale
+                  </p>
+                  <p className="mt-1 text-sm font-medium">
+                    {parsedSaleAmount != null && tokenDecimals != null
+                      ? `${formatTokenAmount(parsedSaleAmount, tokenDecimals)} ${tokenSymbol ?? "TOKEN"}`
+                      : "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                    Liquidity lock
+                  </p>
+                  <p className="mt-1 text-sm font-medium">
+                    {lockDurationValue === "max"
+                      ? "Indefinite"
+                      : `${Number(lockDurationValue) / (24 * 60 * 60)} days`}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                    Soft cap
+                  </p>
+                  <p className="mt-1 text-sm font-medium">
+                    {softCapValue} {currencyMeta.symbol}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                    Liquidity %
+                  </p>
+                  <p className="mt-1 text-sm font-medium">
+                    {liquidityPercent}%
+                  </p>
+                </div>
+              </div>
             </div>
-            <Separator />
-            <div className="space-y-2 text-sm">
+            <div className="border-t pt-5 mt-5 space-y-2 text-sm">
               <p>
                 <span className="font-medium">Tokens required:</span>{" "}
                 {tokensNeeded != null && tokenDecimals != null
@@ -841,8 +834,7 @@ export default function FairLaunchPage() {
                   : " "}
               </p>
             </div>
-            <Separator />
-            <div className="space-y-3">
+            <div className="border-t pt-5 mt-5 space-y-3">
               <div className="flex flex-col gap-1">
                 <p className="text-sm font-medium">Allowance status</p>
                 <p className="text-xs text-muted-foreground">
@@ -865,7 +857,7 @@ export default function FairLaunchPage() {
               </div>
               <Button
                 variant="outline"
-                className="w-full"
+                className="w-full rounded-full font-semibold"
                 onClick={onApprove}
                 disabled={
                   !needsApproval ||
@@ -886,8 +878,7 @@ export default function FairLaunchPage() {
                 )}
               </Button>
             </div>
-            <Separator />
-            <div className="space-y-3">
+            <div className="border-t pt-5 mt-5 space-y-3">
               <p className="text-sm font-semibold">Checklist</p>
               <div className="space-y-2.5 text-sm">
                 <ChecklistItem
@@ -942,123 +933,134 @@ export default function FairLaunchPage() {
       </div>
 
       {!factory && (
-        <Card className="border border-destructive">
-          <CardHeader>
-            <CardTitle>Factory address missing</CardTitle>
-            <CardDescription>
-              Set NEXT_PUBLIC_FAIRLAUNCH_FACTORY_{chainId} to enable this
-              feature.
-            </CardDescription>
-          </CardHeader>
-        </Card>
+        <div className="rounded-2xl border border-destructive bg-card p-6 max-w-2xl mx-auto">
+          <h2 className="text-lg font-semibold">Factory address missing</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Set NEXT_PUBLIC_FAIRLAUNCH_FACTORY_{chainId} to enable this feature.
+          </p>
+        </div>
       )}
 
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-xl font-bold">
-              Fair launch builder
-            </CardTitle>
-            <CardDescription>
-              Follow the steps to verify your token, configure the sale, and
-              deploy the pool.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-8">
-            <StepIndicator current={step} />
-            {stepContent}
-            <Separator />
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="text-sm text-muted-foreground">
-                Creation fee:{" "}
-                <span className="font-medium text-foreground">
-                  {creationFeeDisplay}
-                </span>
-              </div>
-              <div className="flex gap-4">
-                <Button
-                  variant="secondary"
-                  onClick={handlePrev}
-                  disabled={step === 0}
-                >
-                  Back
-                </Button>
-                {canGoNext ? (
-                  <Button className="rounded-full" onClick={handleNext}>Next</Button>
-                ) : (
-                  <Button
-                    className="rounded-full"
-                    onClick={onSubmit}
-                    disabled={
-                      !isValid ||
-                      !factory ||
-                      isLaunching ||
-                      isConfirming ||
-                      needsApproval ||
-                      !tokensNeeded
-                    }
-                  >
-                    {isLaunching || isConfirming ? (
-                      <>
-                        <Loader2 className="mr-2 size-4 animate-spin" />
-                        Deploying…
-                      </>
-                    ) : (
-                      <>
-                        <Rocket className="mr-2 size-4" />
-                        Create launch
-                      </>
-                    )}
-                  </Button>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        {createdLaunch && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Launchpad deployed</CardTitle>
-              <CardDescription>Your pool is live on-chain.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <div>
-                Pool:{" "}
-                <a
-                  href={addressUrl(chainId, createdLaunch.pool)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-muted-foreground hover:underline"
-                >
-                  {createdLaunch.pool}
-                </a>
-              </div>
-              <div>
-                Tx:{" "}
-                <a
-                  href={txUrl(chainId, createdLaunch.txHash)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-muted-foreground hover:underline"
-                >
-                  {createdLaunch.txHash}
-                </a>
-              </div>
+      <div className="rounded-2xl bg-card p-6 max-w-2xl mx-auto">
+        <h2 className="text-lg font-semibold">Fair launch builder</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Follow the steps to verify your token, configure the sale, and deploy
+          the pool.
+        </p>
+
+        <div className="border-t pt-5 mt-5">
+          <StepIndicator current={step} />
+        </div>
+
+        <div className="border-t pt-5 mt-5">{stepContent}</div>
+
+        <div className="border-t pt-5 mt-5 flex flex-wrap items-center justify-between gap-4">
+          <div className="text-sm text-muted-foreground">
+            Creation fee:{" "}
+            <span className="font-medium text-foreground">
+              {creationFeeDisplay}
+            </span>
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="outline"
+              className="rounded-full"
+              onClick={handlePrev}
+              disabled={step === 0}
+            >
+              Back
+            </Button>
+            {canGoNext ? (
               <Button
-                variant="secondary"
-                className="mt-2 w-full"
-                onClick={() => {
-                  reset();
-                  setStep(0);
-                  setCreatedLaunch(null);
-                }}
+                className="rounded-full font-semibold"
+                onClick={handleNext}
               >
-                Create another
+                Next
               </Button>
-            </CardContent>
-          </Card>
-        )}
+            ) : (
+              <Button
+                className="rounded-full font-semibold"
+                onClick={onSubmit}
+                disabled={
+                  !isValid ||
+                  !factory ||
+                  isLaunching ||
+                  isConfirming ||
+                  needsApproval ||
+                  !tokensNeeded
+                }
+              >
+                {isLaunching || isConfirming ? (
+                  <>
+                    <Loader2 className="mr-2 size-4 animate-spin" />
+                    Deploying…
+                  </>
+                ) : (
+                  <>
+                    <Rocket className="mr-2 size-4" />
+                    Create launch
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
+
+      {createdLaunch && (
+        <div className="rounded-2xl bg-card p-6 max-w-2xl mx-auto">
+          <div className="flex items-center gap-2">
+            <Check className="size-5 text-green-600 dark:text-green-400" />
+            <h2 className="text-lg font-semibold">Launchpad deployed</h2>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Your pool is live on-chain.
+          </p>
+
+          <div className="border-t pt-5 mt-5 space-y-3 text-sm">
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                Pool
+              </p>
+              <a
+                href={addressUrl(chainId, createdLaunch.pool)}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-1 inline-block text-sm text-muted-foreground hover:underline font-mono"
+              >
+                {createdLaunch.pool}
+              </a>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                Transaction
+              </p>
+              <a
+                href={txUrl(chainId, createdLaunch.txHash)}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-1 inline-block text-sm text-muted-foreground hover:underline font-mono"
+              >
+                {createdLaunch.txHash}
+              </a>
+            </div>
+          </div>
+
+          <div className="border-t pt-5 mt-5">
+            <Button
+              variant="outline"
+              className="w-full rounded-full font-semibold"
+              onClick={() => {
+                reset();
+                setStep(0);
+                setCreatedLaunch(null);
+              }}
+            >
+              Create another
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1073,7 +1075,7 @@ function FormField({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       <Label className="text-sm font-medium">{label}</Label>
       {children}
       {error && <p className="text-sm text-destructive">{error}</p>}
@@ -1087,49 +1089,42 @@ function StepIndicator({ current }: { current: number }) {
       {steps.map((item, index) => (
         <div key={item.title} className="flex flex-1 flex-col items-center">
           <div className="flex w-full items-center">
-            {index > 0 && (
-              <div
-                className={cn(
-                  "h-px flex-1",
-                  index <= current ? "bg-foreground" : "bg-border",
-                )}
-              />
-            )}
+            <div
+              className={cn(
+                "h-0.5 flex-1",
+                index === 0
+                  ? "bg-transparent"
+                  : index <= current
+                    ? "bg-foreground"
+                    : "bg-muted",
+              )}
+            />
             <div
               className={cn(
                 "flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-medium transition-colors",
                 index === current
                   ? "bg-foreground text-background"
                   : index < current
-                    ? "bg-emerald-500 text-white"
-                    : "border border-muted-foreground/40 text-muted-foreground",
+                    ? "bg-foreground text-background"
+                    : "border border-muted-foreground text-muted-foreground",
               )}
             >
               {index < current ? <Check className="size-4" /> : index + 1}
             </div>
-            {index < steps.length - 1 && (
-              <div
-                className={cn(
-                  "h-px flex-1",
-                  index < current ? "bg-foreground" : "bg-border",
-                )}
-              />
-            )}
+            <div
+              className={cn(
+                "h-0.5 flex-1",
+                index === steps.length - 1
+                  ? "bg-transparent"
+                  : index < current
+                    ? "bg-foreground"
+                    : "bg-muted",
+              )}
+            />
           </div>
           <p className="mt-2 text-center text-xs font-medium">{item.title}</p>
         </div>
       ))}
-    </div>
-  );
-}
-
-function SummaryStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="py-2">
-      <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
-        {label}
-      </p>
-      <p className="mt-1 text-base font-bold">{value}</p>
     </div>
   );
 }

@@ -1,11 +1,6 @@
 "use client";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  CheckCircle2,
-  Copy,
-  ExternalLink,
-  Loader2,
-} from "lucide-react";
+import { CheckCircle2, Copy, ExternalLink, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -19,15 +14,7 @@ import {
 } from "wagmi";
 import { z } from "zod";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { abis, getFactoryAddress } from "@/lib/contracts";
@@ -226,159 +213,155 @@ export default function CreateTokenPage() {
         </Alert>
       )}
 
-      <Card>
-        <form onSubmit={onSubmit} className="space-y-4">
-          <CardHeader>
-            <CardTitle className="text-xl font-bold">Create token</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Set token metadata and total supply.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-6">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="grid gap-1.5">
-                  <Label htmlFor="name">Name</Label>
-                  <Input
-                    id="name"
-                    placeholder="My Token"
-                    {...register("name")}
-                  />
-                  {errors.name && (
-                    <p className="text-xs text-destructive mt-1">
-                      {errors.name.message}
-                    </p>
-                  )}
-                </div>
-                <div className="grid gap-1.5">
-                  <Label htmlFor="symbol">Symbol</Label>
-                  <Input
-                    id="symbol"
-                    maxLength={11}
-                    placeholder="MTK"
-                    {...register("symbol")}
-                  />
-                  {errors.symbol && (
-                    <p className="text-xs text-destructive mt-1">
-                      {errors.symbol.message}
-                    </p>
-                  )}
-                </div>
-                <div className="grid gap-1.5">
-                  <Label htmlFor="decimals">Decimals (0-18)</Label>
-                  <Input
-                    id="decimals"
-                    type="number"
-                    min={0}
-                    max={18}
-                    {...register("decimals", { valueAsNumber: true })}
-                  />
-                  {errors.decimals && (
-                    <p className="text-xs text-destructive mt-1">
-                      {errors.decimals.message}
-                    </p>
-                  )}
-                </div>
-                <div className="grid gap-1.5">
-                  <Label htmlFor="supply">Total Supply (whole tokens)</Label>
-                  <Input
-                    id="supply"
-                    placeholder="1000000"
-                    {...register("supply")}
-                  />
-                  {errors.supply && (
-                    <p className="text-xs text-destructive mt-1">
-                      {errors.supply.message}
-                    </p>
-                  )}
-                </div>
-              </div>
+      <div className="rounded-2xl bg-card p-6 max-w-2xl mx-auto">
+        <form onSubmit={onSubmit}>
+          <h2 className="text-lg font-semibold">Create token</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Set token metadata and total supply.
+          </p>
 
+          <div className="border-t pt-5 mt-5 space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="name">Name</Label>
+                <Input id="name" placeholder="My Token" {...register("name")} />
+                {errors.name && (
+                  <p className="text-xs text-destructive">
+                    {errors.name.message}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="symbol">Symbol</Label>
+                <Input
+                  id="symbol"
+                  maxLength={11}
+                  placeholder="MTK"
+                  {...register("symbol")}
+                />
+                {errors.symbol && (
+                  <p className="text-xs text-destructive">
+                    {errors.symbol.message}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="decimals">Decimals (0-18)</Label>
+                <Input
+                  id="decimals"
+                  type="number"
+                  min={0}
+                  max={18}
+                  {...register("decimals", { valueAsNumber: true })}
+                />
+                {errors.decimals && (
+                  <p className="text-xs text-destructive">
+                    {errors.decimals.message}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="supply">Total Supply (whole tokens)</Label>
+                <Input
+                  id="supply"
+                  placeholder="1000000"
+                  {...register("supply")}
+                />
+                {errors.supply && (
+                  <p className="text-xs text-destructive">
+                    {errors.supply.message}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t pt-5 mt-5 space-y-4">
             <p className="text-sm text-muted-foreground">
               Creation fee:{" "}
               {fee
                 ? `${nf().format(Number(tryFormatUnits(fee, 18)))} ZIL`
                 : "---"}
             </p>
-          </CardContent>
-          <CardFooter className="flex gap-2">
+
             <Button
               type="submit"
               disabled={!canSubmit || isPending}
               aria-busy={isPending}
-              className="rounded-full text-base font-semibold"
+              className="w-full rounded-full text-base font-semibold"
               size="lg"
             >
               {isPending && <Loader2 className="animate-spin" />}
               {isPending ? "Confirm in wallet..." : "Create Token"}
             </Button>
+
             {hash && (
-              <Button asChild variant="outline">
+              <Button asChild variant="outline" className="w-full rounded-full">
                 <a href={txUrl(chainId, hash)} target="_blank" rel="noreferrer">
                   View Tx
                 </a>
               </Button>
             )}
-          </CardFooter>
 
-          {isConfirming && (
-            <p className="text-xs text-muted-foreground px-6 pb-4">
-              Waiting for confirmations...
-            </p>
-          )}
+            {isConfirming && (
+              <p className="text-xs text-muted-foreground">
+                Waiting for confirmations...
+              </p>
+            )}
+          </div>
         </form>
-      </Card>
+      </div>
 
       {created && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Badge>
-                <CheckCircle2 className="size-3" /> Success
-              </Badge>
-              <CardTitle className="text-base">Token created</CardTitle>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Your token is live. Full supply has been minted to your wallet.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4 text-sm">
-            <div className="grid sm:grid-cols-2 gap-3">
+        <div className="rounded-2xl bg-card p-6 max-w-2xl mx-auto">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="size-5 text-green-600 dark:text-green-400" />
+            <h2 className="text-lg font-semibold">Token created</h2>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Your token is live. Full supply has been minted to your wallet.
+          </p>
+
+          <div className="border-t pt-5 mt-5">
+            <div className="grid sm:grid-cols-2 gap-4">
               <div>
-                <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">
                   Name
-                </div>
-                <div className="font-medium">{created.name}</div>
+                </p>
+                <p className="mt-1 text-sm font-medium">{created.name}</p>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">
                   Symbol
-                </div>
-                <div className="font-medium">{created.symbol}</div>
+                </p>
+                <p className="mt-1 text-sm font-medium">{created.symbol}</p>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">
                   Decimals
-                </div>
-                <div className="font-medium">{created.decimals}</div>
+                </p>
+                <p className="mt-1 text-sm font-medium">{created.decimals}</p>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">
                   Total Supply
-                </div>
-                <div className="font-medium">
+                </p>
+                <p className="mt-1 text-sm font-medium">
                   {tryFormatUnits(created.supply, created.decimals)}
-                </div>
+                </p>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">
                   Address
-                </div>
-                <div className="font-medium flex items-center gap-2">
+                </p>
+                <div className="mt-1 flex items-center gap-2">
                   <a
                     href={addressUrl(chainId, created.token)}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-muted-foreground hover:underline font-mono"
+                    className="text-sm text-muted-foreground hover:underline font-mono"
                   >
                     {created.token.slice(0, 6)}...{created.token.slice(-4)}
                   </a>
@@ -399,10 +382,10 @@ export default function CreateTokenPage() {
                 </div>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">
                   Transaction
-                </div>
-                <div className="font-medium">
+                </p>
+                <p className="mt-1 text-sm font-medium">
                   <a
                     href={txUrl(chainId, created.txHash)}
                     target="_blank"
@@ -411,18 +394,18 @@ export default function CreateTokenPage() {
                   >
                     {created.txHash.slice(0, 8)}...
                   </a>
-                </div>
+                </p>
               </div>
               <div className="sm:col-span-2">
-                <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">
                   Minted To
-                </div>
-                <div className="font-medium flex items-center gap-2">
+                </p>
+                <div className="mt-1 flex items-center gap-2">
                   <a
                     href={addressUrl(chainId, created.creator)}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-muted-foreground hover:underline font-mono"
+                    className="text-sm text-muted-foreground hover:underline font-mono"
                   >
                     {created.creator.slice(0, 6)}...
                     {created.creator.slice(-4)}
@@ -432,13 +415,11 @@ export default function CreateTokenPage() {
                     size="sm"
                     variant="outline"
                     onClick={() => {
-                      navigator.clipboard
-                        .writeText(created.creator)
-                        .then(() =>
-                          toast.success("Address copied", {
-                            description: created.creator,
-                          }),
-                        );
+                      navigator.clipboard.writeText(created.creator).then(() =>
+                        toast.success("Address copied", {
+                          description: created.creator,
+                        }),
+                      );
                     }}
                   >
                     <Copy className="size-4" /> Copy
@@ -446,29 +427,34 @@ export default function CreateTokenPage() {
                 </div>
               </div>
             </div>
+          </div>
 
-            <div className="flex flex-wrap gap-2 pt-2">
-              <Button asChild size="lg" className="rounded-full font-semibold">
-                <a
-                  href={addressUrl(chainId, created.token)}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <ExternalLink className="size-4" /> View on Explorer
-                </a>
-              </Button>
-              <Button asChild variant="outline" size="lg">
-                <a
-                  href={txUrl(chainId, created.txHash)}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <ExternalLink className="size-4" /> View Transaction
-                </a>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+          <div className="border-t pt-5 mt-5 flex flex-wrap gap-2">
+            <Button asChild size="lg" className="rounded-full font-semibold">
+              <a
+                href={addressUrl(chainId, created.token)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <ExternalLink className="size-4" /> View on Explorer
+              </a>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              size="lg"
+              className="rounded-full"
+            >
+              <a
+                href={txUrl(chainId, created.txHash)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <ExternalLink className="size-4" /> View Transaction
+              </a>
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   );

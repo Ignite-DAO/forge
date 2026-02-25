@@ -125,6 +125,104 @@
   }
 }
 
+/* Hero — base fill matches page background */
+.hero-mesh {
+  background-color: var(--background);
+}
+
+/* Fine geometric grid */
+.hero-grid {
+  background-image:
+    linear-gradient(oklch(0.145 0 0) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(0.145 0 0) 1px, transparent 1px);
+  background-size: 48px 48px;
+  animation: hero-grid-scroll 20s linear infinite;
+}
+
+.dark .hero-grid {
+  background-image:
+    linear-gradient(oklch(0.985 0 0) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(0.985 0 0) 1px, transparent 1px);
+}
+
+@keyframes hero-grid-scroll {
+  0%   { background-position: 0 0; }
+  100% { background-position: 48px 48px; }
+}
+
+/* Film-grain noise via tiny SVG data URI */
+.hero-grain {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  animation: hero-grain-shift 3s steps(6) infinite;
+}
+
+@keyframes hero-grain-shift {
+  0%   { background-position: 0 0; }
+  100% { background-position: 180px 180px; }
+}
+
+/* Animated gradient blobs — sunset warm palette */
+.hero-blob {
+  border-radius: 50%;
+  filter: blur(80px);
+  will-change: transform;
+}
+
+.hero-blob-1 {
+  width: 50%;
+  height: 75%;
+  top: -15%;
+  left: -8%;
+  background: oklch(0.82 0.14 55 / 0.40);
+  animation: hero-drift-1 12s ease-in-out infinite;
+}
+.hero-blob-2 {
+  width: 45%;
+  height: 70%;
+  top: 5%;
+  right: -10%;
+  background: oklch(0.80 0.11 25 / 0.30);
+  animation: hero-drift-2 16s ease-in-out infinite;
+}
+.hero-blob-3 {
+  width: 40%;
+  height: 60%;
+  bottom: -20%;
+  left: 25%;
+  background: oklch(0.88 0.10 70 / 0.35);
+  animation: hero-drift-3 14s ease-in-out infinite;
+}
+
+.dark .hero-blob-1 {
+  background: oklch(0.35 0.12 55 / 0.35);
+}
+.dark .hero-blob-2 {
+  background: oklch(0.30 0.10 25 / 0.25);
+}
+.dark .hero-blob-3 {
+  background: oklch(0.38 0.08 70 / 0.30);
+}
+
+@keyframes hero-drift-1 {
+  0%   { transform: translate(0, 0) scale(1) rotate(0deg); }
+  33%  { transform: translate(15%, 20%) scale(1.15) rotate(3deg); }
+  66%  { transform: translate(-10%, 10%) scale(0.95) rotate(-2deg); }
+  100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+}
+@keyframes hero-drift-2 {
+  0%   { transform: translate(0, 0) scale(1) rotate(0deg); }
+  33%  { transform: translate(-18%, 15%) scale(1.1) rotate(-3deg); }
+  66%  { transform: translate(12%, -12%) scale(1.05) rotate(2deg); }
+  100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+}
+@keyframes hero-drift-3 {
+  0%   { transform: translate(0, 0) scale(1) rotate(0deg); }
+  33%  { transform: translate(10%, -18%) scale(1.12) rotate(2deg); }
+  66%  { transform: translate(-14%, 8%) scale(0.92) rotate(-3deg); }
+  100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+}
+
 /* Hide scrollbar in Chrome, Safari, and Opera */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
