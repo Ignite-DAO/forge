@@ -3,18 +3,14 @@
 import {
   ArrowUpRight,
   Gift,
-  Rocket,
   Sparkles,
-  TimerReset,
   TrendingUp,
-  Wallet,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatUnits } from "viem";
 import { usePublicClient, useReadContract } from "wagmi";
 import { erc20Abi } from "@/abi/erc20";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -29,13 +25,11 @@ import {
   getBondingCurveFactoryAddress,
   getFairLaunchFactoryAddress,
 } from "@/lib/contracts";
-import { addressUrl } from "@/lib/explorer";
 import {
   type FairLaunchCurrencyCode,
   formatTokenAmount,
   getCurrencyMeta,
 } from "@/lib/fairlaunch";
-import { formatAddress } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useNetwork } from "@/providers/network";
 
@@ -86,27 +80,24 @@ type HomeLaunchItem =
       launch: FairLaunchSummary;
     };
 
-const fairLaunchStatusLabels: Record<
-  number,
-  { label: string; variant: "default" | "secondary" | "outline" }
-> = {
-  0: { label: "Upcoming", variant: "secondary" },
-  1: { label: "Live", variant: "default" },
-  2: { label: "Ready", variant: "outline" },
-  3: { label: "Finalized", variant: "secondary" },
-  4: { label: "Cancelled", variant: "outline" },
-  5: { label: "Failed", variant: "outline" },
+const fairLaunchStatusLabels: Record<number, string> = {
+  0: "UPCOMING",
+  1: "LIVE",
+  2: "READY",
+  3: "FINALIZED",
+  4: "CANCELLED",
+  5: "FAILED",
 };
 
-const bondingCurveStateLabels: Record<
-  number,
-  { label: string; variant: "default" | "secondary" }
-> = {
-  0: { label: "Trading", variant: "default" },
-  1: { label: "Graduated", variant: "secondary" },
+const bondingCurveStateLabels: Record<number, string> = {
+  0: "TRADING",
+  1: "GRADUATED",
 };
 
 const HOME_LAUNCH_LIMIT = 45;
+
+type TabValue = "all" | "bonding_curves" | "fair_launches";
+type StatusFilter = "live" | "upcoming" | "ended" | null;
 
 function buildMixedLaunches(
   bondingCurvePools: (BondingCurveSummary & { metadata?: TokenMetadata })[],
@@ -136,6 +127,45 @@ function buildMixedLaunches(
   }
 
   return mixed;
+}
+
+function isItemLive(item: HomeLaunchItem): boolean {
+  if (item.kind === "bonding_curve") return item.pool.state === 0;
+  return item.launch.status === 1;
+}
+
+function isItemUpcoming(item: HomeLaunchItem): boolean {
+  if (item.kind === "bonding_curve") return false;
+  return item.launch.status === 0;
+}
+
+function isItemEnded(item: HomeLaunchItem): boolean {
+  if (item.kind === "bonding_curve") return item.pool.state === 1;
+  return item.launch.status >= 2;
+}
+
+function filterLaunches(
+  items: HomeLaunchItem[],
+  tab: TabValue,
+  status: StatusFilter,
+): HomeLaunchItem[] {
+  let filtered = items;
+
+  if (tab === "bonding_curves") {
+    filtered = filtered.filter((i) => i.kind === "bonding_curve");
+  } else if (tab === "fair_launches") {
+    filtered = filtered.filter((i) => i.kind === "fair_launch");
+  }
+
+  if (status === "live") {
+    filtered = filtered.filter(isItemLive);
+  } else if (status === "upcoming") {
+    filtered = filtered.filter(isItemUpcoming);
+  } else if (status === "ended") {
+    filtered = filtered.filter(isItemEnded);
+  }
+
+  return filtered;
 }
 
 export default function Home() {
@@ -174,6 +204,9 @@ export default function Home() {
   const [bondingCurveError, setBondingCurveError] = useState<string | null>(
     null,
   );
+
+  const [activeTab, setActiveTab] = useState<TabValue>("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(null);
 
   useEffect(() => {
     if (!chainId) return;
@@ -445,57 +478,71 @@ export default function Home() {
     (Boolean(fairLaunchFactory) && isFairLaunchLoading);
   const launchDataErrors = [bondingCurveError, fairLaunchError].filter(Boolean);
 
+  const filteredLaunches = filterLaunches(allLaunches, activeTab, statusFilter);
+
+  const tabs: { value: TabValue; label: string }[] = [
+    { value: "all", label: "All" },
+    { value: "bonding_curves", label: "Bonding Curves" },
+    { value: "fair_launches", label: "Fair Launches" },
+  ];
+
+  const statusChips: { value: StatusFilter; label: string }[] = [
+    { value: "live", label: "Live" },
+    { value: "upcoming", label: "Upcoming" },
+    { value: "ended", label: "Ended" },
+  ];
+
   return (
-    <div className="space-y-10 pb-12">
-      <section className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-primary/10 via-background to-background p-10 sm:p-12">
-        <div className="relative z-10 max-w-3xl">
-          <h1 className="bg-gradient-to-r from-foreground via-primary to-foreground bg-clip-text text-4xl font-semibold tracking-tight text-transparent sm:text-5xl">
-            Launch and discover tokens in one place.
-          </h1>
-          <p className="mt-4 text-base text-muted-foreground">
-            Create bonding curve launches, run fair launches, and distribute
-            airdrops on Zilliqa EVM. Browse live opportunities directly below.
-          </p>
-          <div className="mt-7 flex flex-wrap gap-3">
-            <Button asChild size="lg">
-              <Link
-                href="/bonding-curve"
-                className="inline-flex items-center gap-1.5"
-              >
-                Launch Token
-                <Rocket className="size-4" />
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="lg">
-              <Link
-                href="/discover"
-                className="inline-flex items-center gap-1.5"
-              >
-                All Launches
-                <Sparkles className="size-4" />
-              </Link>
-            </Button>
-          </div>
-        </div>
-        <div className="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full bg-primary/20 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-32 -left-20 size-64 rounded-full bg-primary/15 blur-3xl" />
-      </section>
+    <div className="space-y-8 pb-12">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">All Launches</h1>
+        <p className="mt-1 text-muted-foreground">
+          Bonding curves and fair launches in one feed.
+        </p>
+      </div>
 
-      <section className="space-y-5">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-semibold">All launches</h2>
-            <p className="text-sm text-muted-foreground">
-              Bonding curves and fair launches in one feed.
-            </p>
-          </div>
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/discover">View all launches</Link>
-          </Button>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex gap-1 rounded-full border p-1">
+          {tabs.map((tab) => (
+            <button
+              key={tab.value}
+              type="button"
+              onClick={() => setActiveTab(tab.value)}
+              className={cn(
+                "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
+                activeTab === tab.value
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
+        <div className="flex gap-2">
+          {statusChips.map((chip) => (
+            <button
+              key={chip.value}
+              type="button"
+              onClick={() =>
+                setStatusFilter(statusFilter === chip.value ? null : chip.value)
+              }
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs font-medium uppercase tracking-wider transition-colors",
+                statusFilter === chip.value
+                  ? "border-foreground bg-foreground text-background"
+                  : "text-muted-foreground hover:text-foreground hover:border-foreground/40",
+              )}
+            >
+              {chip.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
+      <section>
         {hasNoLaunchFactories ? (
-          <Card className="border-destructive">
+          <Card className="border border-destructive">
             <CardHeader>
               <CardTitle>Launch factories missing</CardTitle>
               <CardDescription>
@@ -506,49 +553,52 @@ export default function Home() {
             </CardHeader>
           </Card>
         ) : isLoadingLaunches && allLaunches.length === 0 ? (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }, (_, i) => `launch-skeleton-${i}`).map(
               (skeletonKey) => (
-                <Skeleton key={skeletonKey} className="h-52 rounded-xl" />
+                <Skeleton key={skeletonKey} className="h-72 rounded-2xl" />
               ),
             )}
           </div>
         ) : allLaunches.length === 0 ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>No launches yet</CardTitle>
-              <CardDescription>
-                Be the first to launch a token on Torchpad.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button asChild>
-                <Link href="/bonding-curve">Launch token</Link>
-              </Button>
-            </CardContent>
-          </Card>
+          <div className="flex flex-col items-center rounded-2xl border py-20 text-center">
+            <div className="mb-4 flex size-16 items-center justify-center rounded-full bg-muted">
+              <Sparkles className="size-7 text-muted-foreground" />
+            </div>
+            <h2 className="text-lg font-bold">No launches yet</h2>
+            <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+              Be the first to launch a token on Torchpad.
+            </p>
+            <Button asChild variant="outline" className="mt-5 rounded-full">
+              <Link href="/bonding-curve">Launch a Token</Link>
+            </Button>
+          </div>
         ) : (
           <>
             {launchDataErrors.length > 0 && (
-              <p className="text-xs text-muted-foreground">
-                Some data is unavailable right now:{" "}
-                {launchDataErrors.join(" • ")}
+              <p className="mb-4 text-xs text-muted-foreground">
+                Some data is unavailable: {launchDataErrors.join(" · ")}
               </p>
             )}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {allLaunches.map((item) =>
-                item.kind === "fair_launch" ? (
-                  <FairLaunchCard
-                    key={item.key}
-                    launch={item.launch}
-                    chainId={chainId}
-                    showFairLaunchBadge
-                  />
-                ) : (
-                  <BondingCurvePoolCard key={item.key} pool={item.pool} />
-                ),
-              )}
-            </div>
+
+            {filteredLaunches.length === 0 ? (
+              <p className="py-16 text-center text-muted-foreground">
+                No launches match the current filters.
+              </p>
+            ) : (
+              <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+                {filteredLaunches.map((item) =>
+                  item.kind === "fair_launch" ? (
+                    <FairLaunchCard
+                      key={item.key}
+                      launch={item.launch}
+                    />
+                  ) : (
+                    <BondingCurveCard key={item.key} pool={item.pool} />
+                  ),
+                )}
+              </div>
+            )}
           </>
         )}
       </section>
@@ -556,267 +606,314 @@ export default function Home() {
       <section className="grid gap-4 sm:grid-cols-3">
         <Link
           href="/bonding-curve"
-          className="group rounded-xl border border-border p-5 transition-all hover:border-primary/50 hover:bg-gradient-to-br hover:from-primary/5 hover:to-transparent"
+          className="group flex items-center gap-3 rounded-2xl border p-5 transition-colors hover:bg-muted/50"
         >
-          <div className="flex items-center gap-3">
-            <span className="inline-flex size-14 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-              <TrendingUp className="size-5" />
-            </span>
-            <div className="flex-1">
-              <div className="font-medium">Bonding Curve</div>
-              <div className="text-sm text-muted-foreground">
-                Launch with instant liquidity
-              </div>
+          <span className="flex size-10 items-center justify-center rounded-full bg-muted">
+            <TrendingUp className="size-5 text-muted-foreground" />
+          </span>
+          <div className="flex-1">
+            <div className="text-sm font-semibold">Bonding Curve</div>
+            <div className="text-xs text-muted-foreground">
+              Launch with instant liquidity
             </div>
-            <ArrowUpRight className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
           </div>
+          <ArrowUpRight className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
         </Link>
 
         <Link
           href="/fair-launch"
-          className="group rounded-xl border border-border p-5 transition-all hover:border-primary/50 hover:bg-gradient-to-br hover:from-primary/5 hover:to-transparent"
+          className="group flex items-center gap-3 rounded-2xl border p-5 transition-colors hover:bg-muted/50"
         >
-          <div className="flex items-center gap-3">
-            <span className="inline-flex size-14 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-              <Sparkles className="size-5" />
-            </span>
-            <div className="flex-1">
-              <div className="font-medium">Fair Launch</div>
-              <div className="text-sm text-muted-foreground">
-                Community-first raises
-              </div>
+          <span className="flex size-10 items-center justify-center rounded-full bg-muted">
+            <Sparkles className="size-5 text-muted-foreground" />
+          </span>
+          <div className="flex-1">
+            <div className="text-sm font-semibold">Fair Launch</div>
+            <div className="text-xs text-muted-foreground">
+              Community-first raises
             </div>
-            <ArrowUpRight className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
           </div>
+          <ArrowUpRight className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
         </Link>
 
         <Link
           href="/airdrop"
-          className="group rounded-xl border border-border p-5 transition-all hover:border-primary/50 hover:bg-gradient-to-br hover:from-primary/5 hover:to-transparent"
+          className="group flex items-center gap-3 rounded-2xl border p-5 transition-colors hover:bg-muted/50"
         >
-          <div className="flex items-center gap-3">
-            <span className="inline-flex size-14 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-              <Gift className="size-5" />
-            </span>
-            <div className="flex-1">
-              <div className="font-medium">Airdrop</div>
-              <div className="text-sm text-muted-foreground">
-                Batch distribute tokens
-              </div>
+          <span className="flex size-10 items-center justify-center rounded-full bg-muted">
+            <Gift className="size-5 text-muted-foreground" />
+          </span>
+          <div className="flex-1">
+            <div className="text-sm font-semibold">Airdrop</div>
+            <div className="text-xs text-muted-foreground">
+              Batch distribute tokens
             </div>
-            <ArrowUpRight className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
           </div>
+          <ArrowUpRight className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
         </Link>
       </section>
     </div>
   );
 }
 
-function BondingCurvePoolCard({
+/* ------------------------------------------------------------------ */
+/*  Card Components                                                     */
+/* ------------------------------------------------------------------ */
+
+function BondingCurveCard({
   pool,
 }: {
   pool: BondingCurveSummary & { metadata?: TokenMetadata };
 }) {
   const isGraduated = pool.state === 1;
-  const stateConfig =
-    bondingCurveStateLabels[pool.state] ?? bondingCurveStateLabels[0];
+  const statusLabel = bondingCurveStateLabels[pool.state] ?? "TRADING";
   const progress = Number(pool.progressBps) / 100;
   const priceFormatted = formatUnits(pool.currentPrice, 18);
   const mcapFormatted = formatUnits(pool.marketCap, 18);
   const detailHref = `/discover/${pool.pool}`;
 
   return (
-    <Card
-      className={cn(
-        "group flex h-full flex-col gap-0 overflow-hidden pt-0",
-        isGraduated && "ring-1 ring-emerald-500/20",
-      )}
-    >
-      <Link href={detailHref} className="relative block overflow-hidden">
-        {pool.metadata?.image_url ? (
-          <img
-            src={pool.metadata.image_url}
-            alt={pool.tokenName}
-            className="aspect-[16/10] w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-          />
-        ) : (
-          <div className="flex aspect-[16/10] w-full items-center justify-center bg-gradient-to-br from-muted via-muted/60 to-muted">
-            <span className="text-3xl font-bold text-muted-foreground/60">
-              {pool.tokenSymbol}
-            </span>
-          </div>
-        )}
-        <Badge
-          variant={stateConfig.variant}
-          className={cn(
-            "absolute bottom-2 right-2",
-            isGraduated &&
-              "border-emerald-500/20 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+    <Link href={detailHref} className="block">
+      <div className="rounded-2xl bg-card p-6 transition-colors hover:brightness-[0.98] dark:hover:brightness-110">
+        {/* Header */}
+        <div className="flex items-start gap-4">
+          {pool.metadata?.image_url ? (
+            <img
+              src={pool.metadata.image_url}
+              alt={pool.tokenName}
+              className="size-14 shrink-0 rounded-full object-cover"
+            />
+          ) : (
+            <div className="flex size-14 shrink-0 items-center justify-center rounded-full bg-muted text-lg font-bold text-muted-foreground">
+              {pool.tokenSymbol.slice(0, 2)}
+            </div>
           )}
-        >
-          {stateConfig.label}
-        </Badge>
-      </Link>
-      <div className="space-y-0.5 px-6 pt-4">
-        <Link href={detailHref}>
-          <p className="truncate text-base font-semibold transition-colors group-hover:text-primary">
-            {pool.tokenName}
-          </p>
-          <p className="text-sm text-muted-foreground">{pool.tokenSymbol}</p>
-        </Link>
-      </div>
-      <CardContent className="flex flex-1 flex-col justify-between gap-4 pt-3">
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>{isGraduated ? "Graduated" : "Progress to graduation"}</span>
-              <span>{progress.toFixed(1)}%</span>
-            </div>
-            <div className="h-4 w-full overflow-hidden rounded-full bg-muted/70 ring-1 ring-border/40">
-              <div
-                className={cn(
-                  "h-full rounded-full shadow-sm transition-all duration-500 ease-out",
-                  isGraduated
-                    ? "bg-gradient-to-r from-emerald-500/65 via-emerald-500 to-emerald-500/75 shadow-emerald-500/40"
-                    : "bg-gradient-to-r from-primary/65 via-primary to-primary/75 shadow-primary/40",
-                )}
-                style={{ width: `${Math.min(progress, 100)}%` }}
-              />
-            </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate text-lg font-bold">{pool.tokenName}</h3>
+            <p className="text-sm text-muted-foreground">{pool.tokenSymbol}</p>
           </div>
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div className="rounded-lg border bg-muted/40 p-2">
-              <p className="text-xs text-muted-foreground">Price</p>
-              <p className="font-medium">
-                {Number(priceFormatted).toFixed(9)} ZIL
-              </p>
-            </div>
-            <div className="rounded-lg border bg-muted/40 p-2">
-              <p className="text-xs text-muted-foreground">Market cap</p>
-              <p className="font-medium">
-                {Number(mcapFormatted).toLocaleString()} ZIL
-              </p>
-            </div>
+          <span
+            className={cn(
+              "shrink-0 rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-wider",
+              isGraduated
+                ? "border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+                : "border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400",
+            )}
+          >
+            {statusLabel}
+          </span>
+        </div>
+
+        <div className="my-5 border-t" />
+
+        {/* Stats grid */}
+        <div className="grid grid-cols-2 gap-y-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Price
+            </p>
+            <p className="mt-0.5 text-sm font-bold">
+              {Number(priceFormatted).toFixed(6)} ZIL
+            </p>
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Market Cap
+            </p>
+            <p className="mt-0.5 text-sm font-bold">
+              {Number(mcapFormatted).toLocaleString()} ZIL
+            </p>
           </div>
         </div>
-        <Button
-          asChild
-          size="lg"
-          variant={isGraduated ? "secondary" : "default"}
-          className="w-full"
+
+        <div className="my-5 border-t" />
+
+        {/* Progress */}
+        <div>
+          <div className="flex items-center justify-between text-xs font-semibold">
+            <span>{progress.toFixed(0)}%</span>
+            <span className="uppercase tracking-wider text-muted-foreground">
+              {isGraduated ? "Graduated" : "To graduation"}
+            </span>
+          </div>
+          <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className={cn(
+                "h-full rounded-full transition-all",
+                isGraduated ? "bg-emerald-500" : "bg-foreground",
+              )}
+              style={{ width: `${Math.min(progress, 100)}%` }}
+            />
+          </div>
+        </div>
+
+        <div className="my-5 border-t" />
+
+        {/* CTA */}
+        <div
+          className={cn(
+            "flex items-center justify-center rounded-full py-2.5 text-sm font-medium",
+            isGraduated
+              ? "border text-foreground"
+              : "bg-foreground text-background",
+          )}
         >
-          <Link href={detailHref}>
-            <TrendingUp className="mr-1.5 size-4" />
-            {isGraduated ? "View" : "Trade"}
-          </Link>
-        </Button>
-      </CardContent>
-    </Card>
+          {isGraduated ? "View" : "Trade"}
+        </div>
+      </div>
+    </Link>
   );
 }
 
 function FairLaunchCard({
   launch,
-  chainId,
-  showFairLaunchBadge = false,
 }: {
   launch: FairLaunchSummary;
-  chainId: number;
-  showFairLaunchBadge?: boolean;
 }) {
   const currencyMeta = getCurrencyMeta(launch.currency);
-  const statusConfig =
-    fairLaunchStatusLabels[launch.status] ?? fairLaunchStatusLabels[0];
+  const statusLabel = fairLaunchStatusLabels[launch.status] ?? "UPCOMING";
+  const isLive = launch.status === 1;
   const start = new Date(launch.startTime * 1000);
   const end = new Date(launch.endTime * 1000);
   const now = Date.now();
-  const isLive = launch.status === 1;
-  const startsIn = start.getTime() > now ? formatRelative(start) : "Started";
-  const endsIn = end.getTime() > now ? formatRelative(end) : "Ended";
+  const raised = formatTokenAmount(launch.totalRaised, currencyMeta.decimals);
+  const softCap = formatTokenAmount(launch.softCap, currencyMeta.decimals);
+  const progressPct =
+    Number(launch.softCap) > 0
+      ? Math.min(
+          (Number(launch.totalRaised) / Number(launch.softCap)) * 100,
+          100,
+        )
+      : 0;
+
+  const timeLabel = isLive
+    ? formatCountdown(end)
+    : start.getTime() > now
+      ? `Starts ${formatCountdown(start)}`
+      : "Ended";
+
+  const ctaLabel = isLive ? "Invest" : launch.status === 0 ? "Notify Me" : "View";
 
   return (
-    <Card className="flex h-full flex-col overflow-hidden">
-      <div className="h-3 bg-gradient-to-r from-primary/60 via-primary to-primary/60" />
-      <CardHeader className="space-y-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base font-semibold">
-            {launch.tokenName}
-          </CardTitle>
-          <div className="flex items-center gap-2">
-            {showFairLaunchBadge && (
-              <Badge variant="outline">Fair launch</Badge>
+    <Link href={`/fair-launch/${launch.pool}`} className="block">
+      <div className="rounded-2xl bg-card p-6 transition-colors hover:brightness-[0.98] dark:hover:brightness-110">
+        {/* Header */}
+        <div className="flex items-start gap-4">
+          <div className="flex size-14 shrink-0 items-center justify-center rounded-full bg-muted text-lg font-bold text-muted-foreground">
+            {launch.tokenSymbol.slice(0, 2)}
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate text-lg font-bold">{launch.tokenName}</h3>
+            <p className="text-sm text-muted-foreground">
+              {launch.tokenSymbol}
+            </p>
+          </div>
+          <span
+            className={cn(
+              "shrink-0 rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-wider",
+              isLive
+                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                : "text-foreground",
             )}
-            <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
+          >
+            {statusLabel}
+          </span>
+        </div>
+
+        <div className="my-5 border-t" />
+
+        {/* Stats grid */}
+        <div className="grid grid-cols-2 gap-y-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Total Raise
+            </p>
+            <p className="mt-0.5 text-sm font-bold">
+              {softCap} {currencyMeta.symbol}
+            </p>
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Currency
+            </p>
+            <p className="mt-0.5 text-sm font-bold">{currencyMeta.label}</p>
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Raised
+            </p>
+            <p className="mt-0.5 text-sm font-bold">
+              {raised} {currencyMeta.symbol}
+            </p>
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Starts
+            </p>
+            <p className="mt-0.5 text-sm font-bold">
+              {start.getTime() > now
+                ? start.toLocaleDateString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "Now"}
+            </p>
           </div>
         </div>
-        <div className="text-sm text-muted-foreground">
-          {formatAddress(launch.pool)}
+
+        <div className="my-5 border-t" />
+
+        {/* Progress */}
+        <div>
+          <div className="flex items-center justify-between text-xs font-semibold">
+            <span>{progressPct.toFixed(0)}%</span>
+            <span className="uppercase tracking-wider text-muted-foreground">
+              {timeLabel}
+            </span>
+          </div>
+          <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-foreground transition-all"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-          <span className="inline-flex items-center gap-1">
-            <TimerReset className="size-3.5" />
-            {isLive ? `Ends ${endsIn}` : `Starts ${startsIn}`}
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <Wallet className="size-3.5" /> {currencyMeta.label}
-          </span>
+
+        <div className="my-5 border-t" />
+
+        {/* CTA */}
+        <div
+          className={cn(
+            "flex items-center justify-center rounded-full py-2.5 text-sm font-medium",
+            isLive
+              ? "bg-foreground text-background"
+              : "border text-foreground",
+          )}
+        >
+          {ctaLabel}
         </div>
-      </CardHeader>
-      <CardContent className="flex flex-1 flex-col justify-between gap-4">
-        <div className="space-y-2 text-sm">
-          <StatRow
-            label="Total raised"
-            value={`${formatTokenAmount(launch.totalRaised, currencyMeta.decimals)} ${currencyMeta.symbol}`}
-          />
-          <StatRow
-            label="Tokens for sale"
-            value={`${formatTokenAmount(launch.tokensForSale, 18)} ${launch.tokenSymbol}`}
-          />
-          <StatRow
-            label="Soft cap"
-            value={`${formatTokenAmount(launch.softCap, currencyMeta.decimals)} ${currencyMeta.symbol}`}
-          />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button asChild size="lg" className="flex-1">
-            <Link href={`/fair-launch/${launch.pool}`}>View launch</Link>
-          </Button>
-          <Button asChild size="lg" variant="outline">
-            <a
-              href={addressUrl(chainId, launch.pool)}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Explorer
-              <ArrowUpRight className="ml-1 size-3.5" />
-            </a>
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+      </div>
+    </Link>
   );
 }
 
-function StatRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium">{value}</span>
-    </div>
-  );
-}
+/* ------------------------------------------------------------------ */
+/*  Helpers                                                            */
+/* ------------------------------------------------------------------ */
 
-function formatRelative(date: Date) {
+function formatCountdown(date: Date) {
   const diffMs = date.getTime() - Date.now();
+  if (diffMs <= 0) return "Now";
   const abs = Math.abs(diffMs);
-  const minutes = Math.round(abs / (60 * 1000));
-  if (minutes < 60) {
-    return `${minutes} min ${diffMs > 0 ? "from now" : "ago"}`;
+  const minutes = Math.floor(abs / (60 * 1000));
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  if (days > 0) {
+    const remainHours = hours % 24;
+    return `${String(days).padStart(2, "0")}D ${String(remainHours).padStart(2, "0")}H LEFT`;
   }
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) {
-    return `${hours} hr ${diffMs > 0 ? "from now" : "ago"}`;
-  }
-  const days = Math.round(hours / 24);
-  return `${days} day${days === 1 ? "" : "s"} ${diffMs > 0 ? "from now" : "ago"}`;
+  const remainMinutes = minutes % 60;
+  return `${String(hours).padStart(2, "0")}H ${String(remainMinutes).padStart(2, "0")}M LEFT`;
 }

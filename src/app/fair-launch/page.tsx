@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, ShieldCheck } from "lucide-react";
+import { Check, Loader2, Rocket } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -16,8 +16,6 @@ import {
 import { useNetwork } from "@/providers/network";
 import { z } from "zod";
 import { erc20Abi } from "@/abi/erc20";
-import { PageHeader } from "@/components/page-header";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -130,7 +128,7 @@ const formSchema = z
       );
     },
     {
-      message: "Hard cap must be ≥ soft cap",
+      message: "Hard cap must be >= soft cap",
       path: ["hardCap"],
     },
   )
@@ -503,9 +501,11 @@ export default function FairLaunchPage() {
     switch (step) {
       case 0:
         return (
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="tokenAddress">Token address</Label>
+              <Label htmlFor="tokenAddress" className="text-sm font-medium">
+                Token address
+              </Label>
               <Input
                 id="tokenAddress"
                 placeholder="0x..."
@@ -525,13 +525,13 @@ export default function FairLaunchPage() {
               )}
             </div>
             <div className="space-y-3">
-              <Label>Raise currency</Label>
+              <Label className="text-sm font-medium">Raise currency</Label>
               <RadioGroup
                 value={currencyCode}
                 onValueChange={(value) =>
                   setValue("currency", value as FormValues["currency"])
                 }
-                className="grid gap-2 sm:grid-cols-2"
+                className="grid gap-3 sm:grid-cols-2"
               >
                 {FAIR_LAUNCH_CURRENCIES.map((option) => (
                   <RadioGroupItem key={option.code} value={option.code}>
@@ -549,8 +549,8 @@ export default function FairLaunchPage() {
         );
       case 1:
         return (
-          <div className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-5">
+            <div className="grid gap-5 md:grid-cols-2">
               <FormField
                 label={`Total selling amount (${tokenSymbol ?? "TOKEN"})`}
                 error={errors.saleAmount?.message}
@@ -584,7 +584,7 @@ export default function FairLaunchPage() {
                 />
               </FormField>
             </div>
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-5 md:grid-cols-2">
               <FormField label="Start time" error={errors.startTime?.message}>
                 <Input
                   type="datetime-local"
@@ -600,7 +600,7 @@ export default function FairLaunchPage() {
                 />
               </FormField>
             </div>
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-5 md:grid-cols-2">
               <FormField
                 label="Liquidity percentage"
                 error={errors.liquidityPercent?.message}
@@ -636,7 +636,7 @@ export default function FairLaunchPage() {
                 </Select>
               </FormField>
             </div>
-            <div className="space-y-3 rounded-lg border p-4">
+            <div className="space-y-3 rounded-xl border p-5">
               <label className="flex items-center gap-2 text-sm font-medium">
                 <input
                   type="checkbox"
@@ -677,7 +677,7 @@ export default function FairLaunchPage() {
                 </Select>
               </div>
               {autoListing && routerKindValue === "V3" && (
-                <div className="space-y-3 rounded-md border border-dashed border-primary/30 p-3">
+                <div className="space-y-3 rounded-xl border p-4">
                   <p className="text-xs font-medium text-muted-foreground">
                     PlunderSwap V3 fee tier (full range)
                   </p>
@@ -686,7 +686,7 @@ export default function FairLaunchPage() {
                     onValueChange={(value) =>
                       setValue("v3FeeTier", value as FormValues["v3FeeTier"])
                     }
-                    className="grid gap-2 sm:grid-cols-2"
+                    className="grid gap-3 sm:grid-cols-2"
                   >
                     {[
                       {
@@ -721,7 +721,7 @@ export default function FairLaunchPage() {
                 </div>
               )}
             </div>
-            <div className="space-y-3 rounded-lg border p-4">
+            <div className="space-y-3 rounded-xl border p-5">
               <label className="flex items-center gap-2 text-sm font-medium">
                 <input
                   type="checkbox"
@@ -750,7 +750,7 @@ export default function FairLaunchPage() {
         );
       case 2:
         return (
-          <div className="space-y-4">
+          <div className="space-y-5">
             <FormField label="Project name" error={errors.projectName?.message}>
               <Input
                 placeholder="Torchpad Fair Launch"
@@ -764,7 +764,7 @@ export default function FairLaunchPage() {
                 {...register("description")}
               />
             </FormField>
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-5 md:grid-cols-2">
               <FormField label="Website" error={errors.website?.message}>
                 <Input placeholder="https://…" {...register("website")} />
               </FormField>
@@ -785,10 +785,10 @@ export default function FairLaunchPage() {
         );
       default:
         return (
-          <div className="space-y-4">
-            <div className="rounded-lg border p-4">
+          <div className="space-y-5">
+            <div>
               <h3 className="font-medium">Token</h3>
-              <p className="text-sm text-muted-foreground">
+              <p className="mt-1 text-sm text-muted-foreground">
                 {tokenName ?? "—"} ({tokenSymbol ?? "—"}) ·{" "}
                 {tokenDecimals ?? "—"} decimals
               </p>
@@ -797,12 +797,13 @@ export default function FairLaunchPage() {
                   href={addressUrl(chainId, tokenAddress as `0x${string}`)}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-xs text-primary hover:underline"
+                  className="mt-1 inline-block text-xs text-muted-foreground hover:underline"
                 >
                   View on explorer
                 </a>
               )}
             </div>
+            <Separator />
             <div className="grid gap-4 md:grid-cols-2">
               <SummaryStat
                 label="Tokens for sale"
@@ -826,7 +827,8 @@ export default function FairLaunchPage() {
               />
               <SummaryStat label="Liquidity %" value={`${liquidityPercent}%`} />
             </div>
-            <div className="space-y-2 rounded-lg border p-4 text-sm">
+            <Separator />
+            <div className="space-y-2 text-sm">
               <p>
                 <span className="font-medium">Tokens required:</span>{" "}
                 {tokensNeeded != null && tokenDecimals != null
@@ -839,7 +841,8 @@ export default function FairLaunchPage() {
                   : " "}
               </p>
             </div>
-            <div className="space-y-3 rounded-lg border p-4">
+            <Separator />
+            <div className="space-y-3">
               <div className="flex flex-col gap-1">
                 <p className="text-sm font-medium">Allowance status</p>
                 <p className="text-xs text-muted-foreground">
@@ -883,9 +886,10 @@ export default function FairLaunchPage() {
                 )}
               </Button>
             </div>
-            <div className="rounded-lg border p-4 space-y-3">
+            <Separator />
+            <div className="space-y-3">
               <p className="text-sm font-semibold">Checklist</p>
-              <div className="space-y-2 text-sm">
+              <div className="space-y-2.5 text-sm">
                 <ChecklistItem
                   label="Wallet connected"
                   done={Boolean(isConnected)}
@@ -929,14 +933,16 @@ export default function FairLaunchPage() {
 
   return (
     <div className="space-y-8 pb-12">
-      <PageHeader
-        title="Fair launch"
-        description="Configure a community-first raise, accept ZIL or USDC, and auto-list on PlunderSwap."
-        icon={<ShieldCheck className="size-6 text-primary" />}
-      />
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Fair launch</h1>
+        <p className="mt-1 text-muted-foreground">
+          Configure a community-first raise, accept ZIL or USDC, and auto-list
+          on PlunderSwap.
+        </p>
+      </div>
 
       {!factory && (
-        <Card className="border-destructive">
+        <Card className="border border-destructive">
           <CardHeader>
             <CardTitle>Factory address missing</CardTitle>
             <CardDescription>
@@ -950,24 +956,26 @@ export default function FairLaunchPage() {
       <div className="space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>Fair launch builder</CardTitle>
+            <CardTitle className="text-xl font-bold">
+              Fair launch builder
+            </CardTitle>
             <CardDescription>
               Follow the steps to verify your token, configure the sale, and
               deploy the pool.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-8">
             <StepIndicator current={step} />
             {stepContent}
             <Separator />
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="text-sm text-muted-foreground">
                 Creation fee:{" "}
                 <span className="font-medium text-foreground">
                   {creationFeeDisplay}
                 </span>
               </div>
-              <div className="flex gap-3">
+              <div className="flex gap-4">
                 <Button
                   variant="secondary"
                   onClick={handlePrev}
@@ -976,9 +984,10 @@ export default function FairLaunchPage() {
                   Back
                 </Button>
                 {canGoNext ? (
-                  <Button onClick={handleNext}>Next</Button>
+                  <Button className="rounded-full" onClick={handleNext}>Next</Button>
                 ) : (
                   <Button
+                    className="rounded-full"
                     onClick={onSubmit}
                     disabled={
                       !isValid ||
@@ -995,7 +1004,10 @@ export default function FairLaunchPage() {
                         Deploying…
                       </>
                     ) : (
-                      "Create launch"
+                      <>
+                        <Rocket className="mr-2 size-4" />
+                        Create launch
+                      </>
                     )}
                   </Button>
                 )}
@@ -1004,7 +1016,7 @@ export default function FairLaunchPage() {
           </CardContent>
         </Card>
         {createdLaunch && (
-          <Card className="border-primary">
+          <Card>
             <CardHeader>
               <CardTitle>Launchpad deployed</CardTitle>
               <CardDescription>Your pool is live on-chain.</CardDescription>
@@ -1016,7 +1028,7 @@ export default function FairLaunchPage() {
                   href={addressUrl(chainId, createdLaunch.pool)}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-primary hover:underline"
+                  className="text-muted-foreground hover:underline"
                 >
                   {createdLaunch.pool}
                 </a>
@@ -1027,7 +1039,7 @@ export default function FairLaunchPage() {
                   href={txUrl(chainId, createdLaunch.txHash)}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-primary hover:underline"
+                  className="text-muted-foreground hover:underline"
                 >
                   {createdLaunch.txHash}
                 </a>
@@ -1062,7 +1074,7 @@ function FormField({
 }) {
   return (
     <div className="space-y-2">
-      <Label>{label}</Label>
+      <Label className="text-sm font-medium">{label}</Label>
       {children}
       {error && <p className="text-sm text-destructive">{error}</p>}
     </div>
@@ -1071,36 +1083,53 @@ function FormField({
 
 function StepIndicator({ current }: { current: number }) {
   return (
-    <ol className="space-y-3">
+    <div className="flex items-start">
       {steps.map((item, index) => (
-        <li key={item.title} className="flex items-start gap-3">
-          <div
-            className={cn(
-              "flex size-7 items-center justify-center rounded-full border text-sm font-medium",
-              index === current
-                ? "border-primary text-primary"
-                : index < current
-                  ? "border-emerald-500 text-emerald-500"
-                  : "border-muted-foreground/40 text-muted-foreground",
+        <div key={item.title} className="flex flex-1 flex-col items-center">
+          <div className="flex w-full items-center">
+            {index > 0 && (
+              <div
+                className={cn(
+                  "h-px flex-1",
+                  index <= current ? "bg-foreground" : "bg-border",
+                )}
+              />
             )}
-          >
-            {index < current ? "✓" : index + 1}
+            <div
+              className={cn(
+                "flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-medium transition-colors",
+                index === current
+                  ? "bg-foreground text-background"
+                  : index < current
+                    ? "bg-emerald-500 text-white"
+                    : "border border-muted-foreground/40 text-muted-foreground",
+              )}
+            >
+              {index < current ? <Check className="size-4" /> : index + 1}
+            </div>
+            {index < steps.length - 1 && (
+              <div
+                className={cn(
+                  "h-px flex-1",
+                  index < current ? "bg-foreground" : "bg-border",
+                )}
+              />
+            )}
           </div>
-          <div>
-            <p className="text-sm font-medium">{item.title}</p>
-            <p className="text-xs text-muted-foreground">{item.description}</p>
-          </div>
-        </li>
+          <p className="mt-2 text-center text-xs font-medium">{item.title}</p>
+        </div>
       ))}
-    </ol>
+    </div>
   );
 }
 
 function SummaryStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border p-3">
-      <p className="text-xs uppercase text-muted-foreground">{label}</p>
-      <p className="text-base font-medium">{value}</p>
+    <div className="py-2">
+      <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-1 text-base font-bold">{value}</p>
     </div>
   );
 }
@@ -1116,11 +1145,20 @@ function ChecklistItem({
 }) {
   return (
     <div className="flex items-center gap-3">
-      <Badge variant={done ? "default" : "outline"} className="shrink-0">
-        {done ? "Ready" : "Pending"}
-      </Badge>
+      <span
+        className={cn(
+          "inline-flex size-5 shrink-0 items-center justify-center rounded-full text-xs",
+          done
+            ? "bg-emerald-500/15 text-emerald-500"
+            : "border border-muted-foreground/30 text-muted-foreground",
+        )}
+      >
+        {done && <Check className="size-3" />}
+      </span>
       <div>
-        <p className="text-sm font-medium">{label}</p>
+        <p className={cn("text-sm font-medium", done && "text-foreground")}>
+          {label}
+        </p>
         {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
       </div>
     </div>

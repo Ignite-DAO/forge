@@ -1,6 +1,13 @@
 "use client";
 
-import { ArrowLeft, CheckCircle, Coins, Gift, TimerReset, Wallet } from "lucide-react";
+import {
+  ArrowLeft,
+  CheckCircle,
+  Clock,
+  Gift,
+  Loader2,
+  Wallet,
+} from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -11,24 +18,13 @@ import {
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
-import { useNetwork } from "@/providers/network";
-
 import { erc20Abi } from "@/abi/erc20";
-import { PageHeader } from "@/components/page-header";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { abis } from "@/lib/contracts";
-import { addressUrl, txUrl } from "@/lib/explorer";
+import { addressUrl } from "@/lib/explorer";
 import {
   type FairLaunchCurrencyCode,
   formatTokenAmount,
@@ -36,6 +32,8 @@ import {
   parseAmount,
 } from "@/lib/fairlaunch";
 import { formatAddress } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { useNetwork } from "@/providers/network";
 
 interface PoolDetail {
   pool: `0x${string}`;
@@ -375,225 +373,333 @@ export default function LaunchDetailPage() {
 
   return (
     <div className="space-y-6 pb-10">
-      <Button
-        asChild
-        variant="ghost"
-        className="h-auto p-0 text-sm text-muted-foreground"
+      <Link
+        href="/discover"
+        className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-primary"
       >
-        <Link href="/discover" className="inline-flex items-center gap-2">
-          <ArrowLeft className="size-4" />
-          Back to launches
-        </Link>
-      </Button>
+        <ArrowLeft className="size-4" />
+        Back to launches
+      </Link>
+
       {isLoading && (
         <div className="space-y-4">
           <Skeleton className="h-32 rounded-2xl" />
           <Skeleton className="h-60 rounded-2xl" />
         </div>
       )}
+
       {error && (
-        <Card className="border-destructive">
+        <Card className="border border-destructive">
           <CardHeader>
             <CardTitle>Unable to load launch</CardTitle>
-            <CardDescription>{error}</CardDescription>
+            <p className="text-sm text-muted-foreground">{error}</p>
           </CardHeader>
         </Card>
       )}
+
       {pool && currencyMeta ? (
         <>
-          <PageHeader
-            title={pool.tokenName}
-            description={`${pool.tokenSymbol} · ${formatAddress(pool.pool)}`}
-            icon={<Coins className="size-6 text-primary" />}
-          />
+          {/* Pool header */}
+          <div className="flex items-start gap-5">
+            <div className="flex size-16 shrink-0 items-center justify-center rounded-full bg-muted">
+              <span className="text-xl font-bold text-muted-foreground">
+                {pool.tokenSymbol.slice(0, 2)}
+              </span>
+            </div>
+            <div className="min-w-0 pt-1">
+              <div className="flex items-center gap-3">
+                <h1 className="text-3xl font-bold">{pool.tokenName}</h1>
+                <span
+                  className={cn(
+                    "rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-wider",
+                    statusConfig.intent === "success" &&
+                      "border-emerald-500/30 text-emerald-600 dark:text-emerald-400",
+                    statusConfig.intent === "warn" &&
+                      "border-amber-500/30 text-amber-600 dark:text-amber-400",
+                  )}
+                >
+                  {statusConfig.label}
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {pool.tokenSymbol}
+              </p>
+            </div>
+          </div>
+
           <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-xl">
+            {/* Main column */}
+            <div className="space-y-6">
+              {/* Progress and stats card */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg font-bold">
                       {pool.tokenSymbol} fair launch
                     </CardTitle>
-                    <CardDescription>
-                      {statusConfig.label} · Soft cap{" "}
-                      {formatTokenAmount(pool.softCap, currencyMeta.decimals)}{" "}
-                      {currencyMeta.symbol}
-                    </CardDescription>
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Fair launch
+                    </span>
                   </div>
-                  <Badge
-                    variant={
-                      statusConfig.intent === "success"
-                        ? "default"
-                        : "secondary"
-                    }
-                  >
-                    {statusConfig.label}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid gap-4 md:grid-cols-3">
-                  <Stat label="Total raised">
-                    {formatTokenAmount(pool.totalRaised, currencyMeta.decimals)}{" "}
-                    {currencyMeta.symbol}
-                  </Stat>
-                  <Stat label="Tokens for sale">
-                    {formatTokenAmount(pool.tokensForSale, pool.tokenDecimals)}{" "}
-                    {pool.tokenSymbol}
-                  </Stat>
-                  <Stat label="Currency">
-                    {currencyMeta.label} ({currencyMeta.symbol})
-                  </Stat>
-                </div>
-                {isConnected && (
-                  <div className="rounded-lg border bg-muted/40 p-3 text-sm">
-                    <p className="text-xs text-muted-foreground">
-                      Your contribution
-                    </p>
-                    <p className="text-base font-semibold">
+                </CardHeader>
+                <CardContent className="space-y-0">
+                  {/* Progress bar */}
+                  {(() => {
+                    const cap = pool.hardCap > 0n ? pool.hardCap : pool.softCap;
+                    const pct =
+                      cap > 0n
+                        ? Math.min(
+                            Number((pool.totalRaised * 10000n) / cap) / 100,
+                            100,
+                          )
+                        : 0;
+                    return (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            {formatTokenAmount(
+                              pool.totalRaised,
+                              currencyMeta.decimals,
+                            )}{" "}
+                            / {formatTokenAmount(cap, currencyMeta.decimals)}{" "}
+                            {currencyMeta.symbol}
+                          </span>
+                          <span className="text-sm font-bold">
+                            {pct.toFixed(1)}%
+                          </span>
+                        </div>
+                        <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
+                          <div
+                            className="h-full rounded-full bg-foreground transition-all duration-500"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  <div className="my-5 border-t" />
+
+                  {/* Stats grid */}
+                  <div className="grid gap-x-8 gap-y-4 md:grid-cols-3">
+                    <Stat label="Total raised">
                       {formatTokenAmount(
-                        userContribution ?? 0n,
+                        pool.totalRaised,
                         currencyMeta.decimals,
                       )}{" "}
                       {currencyMeta.symbol}
-                    </p>
+                    </Stat>
+                    <Stat label="Tokens for sale">
+                      {formatTokenAmount(
+                        pool.tokensForSale,
+                        pool.tokenDecimals,
+                      )}{" "}
+                      {pool.tokenSymbol}
+                    </Stat>
+                    <Stat label="Currency">
+                      {currencyMeta.label} ({currencyMeta.symbol})
+                    </Stat>
                   </div>
-                )}
-                <div className="rounded-lg border p-4 text-sm">
-                  <p className="flex items-center gap-2 text-muted-foreground">
-                    <TimerReset className="size-4" />
-                    Window: {new Date(pool.startTime * 1000).toLocaleString()} →{" "}
+
+                  {isConnected && (
+                    <>
+                      <div className="my-5 border-t" />
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          Your contribution
+                        </p>
+                        <p className="mt-1 text-sm font-bold">
+                          {formatTokenAmount(
+                            userContribution ?? 0n,
+                            currencyMeta.decimals,
+                          )}{" "}
+                          {currencyMeta.symbol}
+                        </p>
+                      </div>
+                    </>
+                  )}
+
+                  <div className="my-5 border-t" />
+
+                  {/* Schedule */}
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Clock className="size-4 shrink-0" />
+                    {new Date(pool.startTime * 1000).toLocaleString()} →{" "}
                     {new Date(pool.endTime * 1000).toLocaleString()}
-                  </p>
-                </div>
-                <Separator />
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium">Contribute</p>
-                    <small className="text-muted-foreground">
-                      Max per wallet:{" "}
-                      {pool.maxContribution === 0n
-                        ? "∞"
-                        : `${formatTokenAmount(pool.maxContribution, currencyMeta.decimals)} ${
-                            currencyMeta.symbol
-                          }`}
-                    </small>
                   </div>
-                  <div className="flex flex-col gap-3 sm:flex-row">
-                    <Input
-                      value={contributionInput}
-                      onChange={(event) =>
-                        setContributionInput(event.target.value)
-                      }
-                      placeholder={`0.0 ${currencyMeta.symbol}`}
-                      type="text"
-                      disabled={!isLive}
-                    />
+
+                  <div className="my-5 border-t" />
+
+                  {/* Contribute section */}
+                  <Card className="border shadow-none">
+                    <CardContent className="space-y-3 p-4">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-bold">Contribute</p>
+                        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          Max:{" "}
+                          {pool.maxContribution === 0n
+                            ? "No limit"
+                            : `${formatTokenAmount(pool.maxContribution, currencyMeta.decimals)} ${currencyMeta.symbol}`}
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-3 sm:flex-row">
+                        <Input
+                          value={contributionInput}
+                          onChange={(event) =>
+                            setContributionInput(event.target.value)
+                          }
+                          placeholder={`0.0 ${currencyMeta.symbol}`}
+                          type="text"
+                          disabled={!isLive}
+                          className="flex-1"
+                        />
+                        <Button
+                          onClick={handleContribute}
+                          disabled={
+                            !isLive || isWriting || contributionBigint == null
+                          }
+                          variant="outline"
+                          className="w-full rounded-full sm:w-auto"
+                        >
+                          {isWriting ? (
+                            <>
+                              <Loader2 className="mr-2 size-4 animate-spin" />
+                              Pending...
+                            </>
+                          ) : (
+                            "Contribute"
+                          )}
+                        </Button>
+                      </div>
+                      {!isLive && (
+                        <p className="text-xs text-muted-foreground">
+                          Contributions are available while the sale is live.
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  <div className="my-5 border-t" />
+
+                  {/* Action buttons */}
+                  <div className="flex flex-wrap gap-3">
                     <Button
-                      onClick={handleContribute}
-                      disabled={
-                        !isLive || isWriting || contributionBigint == null
-                      }
+                      variant="outline"
+                      onClick={handleClaim}
+                      disabled={!isFinalized || isClaimConfirming}
+                      className="rounded-full disabled:opacity-40"
                     >
-                      {isWriting ? "Pending…" : "Contribute"}
+                      Claim tokens
                     </Button>
+                    <Button
+                      variant="outline"
+                      onClick={handleRefund}
+                      disabled={!isRefundEnabled}
+                      className="rounded-full disabled:opacity-40"
+                    >
+                      Claim refund
+                    </Button>
+                    {isCreator && pool.status === 2 && (
+                      <Button
+                        variant="outline"
+                        onClick={handleFinalize}
+                        className="rounded-full"
+                      >
+                        Finalize launch
+                      </Button>
+                    )}
                   </div>
-                  {!isLive && (
-                    <p className="text-xs text-muted-foreground">
-                      Contributions are available while the sale is live.
-                    </p>
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  <Button
-                    variant="outline"
-                    onClick={handleClaim}
-                    disabled={!isFinalized || isClaimConfirming}
-                  >
-                    Claim tokens
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleRefund}
-                    disabled={!isRefundEnabled}
-                  >
-                    Claim refund
-                  </Button>
-                  {isCreator && pool.status === 2 && (
-                    <Button variant="secondary" onClick={handleFinalize}>
-                      Finalize launch
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-            <div className="space-y-4">
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Sidebar */}
+            <div className="space-y-6">
+              {/* Details */}
               <Card>
                 <CardHeader>
                   <CardTitle>Details</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3 text-sm">
-                  <DetailRow label="Pool address">
+                <CardContent className="space-y-0 text-sm">
+                  <div className="flex items-center justify-between gap-3 border-t py-3">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Pool address
+                    </span>
                     <Link
                       href={addressUrl(chainId, pool.pool)}
                       target="_blank"
-                      className="text-primary hover:underline"
+                      className="text-sm font-bold transition-colors hover:text-primary"
                     >
                       {formatAddress(pool.pool)}
                     </Link>
-                  </DetailRow>
-                  <DetailRow label="Creator">
-                    {formatAddress(pool.creator)}
-                  </DetailRow>
-                  <DetailRow label="Soft cap">
-                    {formatTokenAmount(pool.softCap, currencyMeta.decimals)}{" "}
-                    {currencyMeta.symbol}
-                  </DetailRow>
-                  <DetailRow label="Hard cap">
-                    {pool.hardCap === 0n
-                      ? "∞"
-                      : `${formatTokenAmount(pool.hardCap, currencyMeta.decimals)} ${currencyMeta.symbol}`}
-                  </DetailRow>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 border-t py-3">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Creator
+                    </span>
+                    <span className="text-sm font-bold">
+                      {formatAddress(pool.creator)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 border-t py-3">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Soft cap
+                    </span>
+                    <span className="text-sm font-bold">
+                      {formatTokenAmount(pool.softCap, currencyMeta.decimals)}{" "}
+                      {currencyMeta.symbol}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 border-t py-3">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Hard cap
+                    </span>
+                    <span className="text-sm font-bold">
+                      {pool.hardCap === 0n
+                        ? "No limit"
+                        : `${formatTokenAmount(pool.hardCap, currencyMeta.decimals)} ${currencyMeta.symbol}`}
+                    </span>
+                  </div>
                 </CardContent>
               </Card>
+
+              {/* How fair launches work */}
               <Card>
                 <CardHeader>
                   <CardTitle>How fair launches work</CardTitle>
-                  <CardDescription>
-                    Everyone gets the same price &mdash; no first-mover advantage
-                  </CardDescription>
+                  <p className="text-sm text-muted-foreground">
+                    Everyone gets the same price &mdash; no first-mover
+                    advantage
+                  </p>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex gap-4 rounded-lg border bg-muted/30 p-4">
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                      <Wallet className="size-5" />
-                    </span>
+                <CardContent className="space-y-0">
+                  <div className="flex gap-4 border-t py-4">
+                    <Wallet className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
                     <div>
                       <p className="text-sm font-medium">Contribute</p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
-                        Connect your wallet and contribute {currencyMeta.symbol} during the sale window.
+                        Connect your wallet and contribute {currencyMeta.symbol}{" "}
+                        during the sale window.
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-4 rounded-lg border bg-muted/30 p-4">
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                      <CheckCircle className="size-5" />
-                    </span>
+                  <div className="flex gap-4 border-t py-4">
+                    <CheckCircle className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
                     <div>
                       <p className="text-sm font-medium">Fair allocation</p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
-                        Tokens are distributed proportionally &mdash; everyone pays the same price per token.
+                        Tokens are distributed proportionally &mdash; everyone
+                        pays the same price per token.
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-4 rounded-lg border bg-muted/30 p-4">
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500">
-                      <Gift className="size-5" />
-                    </span>
+                  <div className="flex gap-4 border-t py-4">
+                    <Gift className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
                     <div>
                       <p className="text-sm font-medium">Claim tokens</p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
-                        Once finalized, return here to claim your share. If the soft cap isn&apos;t met, you get a full refund.
+                        Once finalized, return here to claim your share. If the
+                        soft cap isn&apos;t met, you get a full refund.
                       </p>
                     </div>
                   </div>
@@ -615,24 +721,11 @@ function Stat({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-lg border bg-muted/40 p-3 text-sm">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-base font-semibold">{children}</p>
-    </div>
-  );
-}
-
-function DetailRow({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3 text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium text-right">{children}</span>
+    <div>
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-1 text-sm font-bold">{children}</p>
     </div>
   );
 }

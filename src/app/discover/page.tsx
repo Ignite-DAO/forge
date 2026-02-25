@@ -1,42 +1,22 @@
 "use client";
 
-import {
-  ArrowUpRight,
-  Sparkles,
-  TimerReset,
-  TrendingUp,
-  Wallet,
-} from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatUnits } from "viem";
 import { usePublicClient, useReadContract } from "wagmi";
 import { useNetwork } from "@/providers/network";
 import { erc20Abi } from "@/abi/erc20";
-import { PageHeader } from "@/components/page-header";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   abis,
   getBondingCurveFactoryAddress,
   getFairLaunchFactoryAddress,
 } from "@/lib/contracts";
-import { addressUrl } from "@/lib/explorer";
 import {
   type FairLaunchCurrencyCode,
   formatTokenAmount,
   getCurrencyMeta,
 } from "@/lib/fairlaunch";
-import { formatAddress } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type FairLaunchSummary = {
@@ -74,24 +54,18 @@ type BondingCurveSummary = {
   metadata?: TokenMetadata;
 };
 
-const fairLaunchStatusLabels: Record<
-  number,
-  { label: string; variant: "default" | "secondary" | "outline" }
-> = {
-  0: { label: "Upcoming", variant: "secondary" },
-  1: { label: "Live", variant: "default" },
-  2: { label: "Ready", variant: "outline" },
-  3: { label: "Finalized", variant: "secondary" },
-  4: { label: "Cancelled", variant: "outline" },
-  5: { label: "Failed", variant: "outline" },
+const fairLaunchStatusLabels: Record<number, string> = {
+  0: "UPCOMING",
+  1: "LIVE",
+  2: "READY",
+  3: "FINALIZED",
+  4: "CANCELLED",
+  5: "FAILED",
 };
 
-const bondingCurveStateLabels: Record<
-  number,
-  { label: string; variant: "default" | "secondary" }
-> = {
-  0: { label: "Trading", variant: "default" },
-  1: { label: "Graduated", variant: "secondary" },
+const bondingCurveStateLabels: Record<number, string> = {
+  0: "TRADING",
+  1: "GRADUATED",
 };
 
 export default function DiscoverPage() {
@@ -99,6 +73,10 @@ export default function DiscoverPage() {
   const fairLaunchFactory = getFairLaunchFactoryAddress(chainId);
   const bondingCurveFactory = getBondingCurveFactoryAddress(chainId);
   const publicClient = usePublicClient({ chainId });
+
+  const [activeTab, setActiveTab] = useState<"bonding-curve" | "fair-launch">(
+    "bonding-curve",
+  );
 
   const { data: launchCountData } = useReadContract({
     abi: abis.forgeFairLaunchFactory,
@@ -398,118 +376,134 @@ export default function DiscoverPage() {
 
   return (
     <div className="space-y-8 pb-12">
-      <PageHeader
-        title="Explore launches"
-        description="Discover bonding curve tokens and fair launches. Connect your wallet to participate."
-        icon={<Sparkles className="size-6 text-primary" />}
-      />
-      <Tabs defaultValue="bonding-curve" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="bonding-curve">Bonding Curve</TabsTrigger>
-          <TabsTrigger value="fair-launch">Fair Launch</TabsTrigger>
-        </TabsList>
-        <TabsContent value="bonding-curve">
-          {!bondingCurveFactory ? (
-            <Card className="border-destructive">
-              <CardHeader>
-                <CardTitle>Bonding curve factory missing</CardTitle>
-                <CardDescription>
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Explore Launches</h1>
+        <p className="mt-1 text-muted-foreground">
+          Discover bonding curve tokens and fair launches.
+        </p>
+      </div>
+
+      <div className="space-y-6">
+        <div className="flex gap-1 rounded-full border p-1">
+          <button
+            type="button"
+            onClick={() => setActiveTab("bonding-curve")}
+            className={cn(
+              "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
+              activeTab === "bonding-curve"
+                ? "bg-foreground text-background"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            Bonding Curve
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("fair-launch")}
+            className={cn(
+              "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
+              activeTab === "fair-launch"
+                ? "bg-foreground text-background"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            Fair Launch
+          </button>
+        </div>
+
+        {activeTab === "bonding-curve" && (
+          <>
+            {!bondingCurveFactory ? (
+              <div className="rounded-2xl border border-destructive p-6">
+                <h3 className="font-bold">Bonding curve factory missing</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
                   Set `NEXT_PUBLIC_BONDING_CURVE_FACTORY_{chainId}` to view
                   bonding curve pools.
-                </CardDescription>
-              </CardHeader>
-            </Card>
-          ) : isBondingCurveLoading ? (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <Skeleton key={i} className="h-52 rounded-xl" />
-              ))}
-            </div>
-          ) : bondingCurveError ? (
-            <Card className="border-destructive">
-              <CardHeader>
-                <CardTitle>Something went wrong</CardTitle>
-                <CardDescription>{bondingCurveError}</CardDescription>
-              </CardHeader>
-            </Card>
-          ) : bondingCurvePools.length === 0 ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>No pools yet</CardTitle>
-                <CardDescription>
+                </p>
+              </div>
+            ) : isBondingCurveLoading ? (
+              <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Skeleton key={i} className="h-72 rounded-2xl" />
+                ))}
+              </div>
+            ) : bondingCurveError ? (
+              <div className="rounded-2xl border border-destructive p-6">
+                <h3 className="font-bold">Something went wrong</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {bondingCurveError}
+                </p>
+              </div>
+            ) : bondingCurvePools.length === 0 ? (
+              <div className="flex flex-col items-center rounded-2xl border py-20 text-center">
+                <h2 className="text-lg font-bold">No pools yet</h2>
+                <p className="mt-1 max-w-sm text-sm text-muted-foreground">
                   Be the first to launch a token on the bonding curve!
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button asChild>
-                  <Link href="/bonding-curve">Launch token</Link>
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {poolsWithMetadata.map((pool) => (
-                <BondingCurvePoolCard
-                  key={pool.pool}
-                  pool={pool}
-                  chainId={chainId}
-                />
-              ))}
-            </div>
-          )}
-        </TabsContent>
-        <TabsContent value="fair-launch">
-          {!fairLaunchFactory ? (
-            <Card className="border-destructive">
-              <CardHeader>
-                <CardTitle>Fair launch factory missing</CardTitle>
-                <CardDescription>
+                </p>
+                <Link
+                  href="/bonding-curve"
+                  className="mt-5 rounded-full border px-6 py-2.5 text-sm font-medium transition-colors hover:bg-muted/50"
+                >
+                  Launch token
+                </Link>
+              </div>
+            ) : (
+              <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+                {poolsWithMetadata.map((pool) => (
+                  <BondingCurvePoolCard key={pool.pool} pool={pool} />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {activeTab === "fair-launch" && (
+          <>
+            {!fairLaunchFactory ? (
+              <div className="rounded-2xl border border-destructive p-6">
+                <h3 className="font-bold">Fair launch factory missing</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
                   Set `NEXT_PUBLIC_FAIRLAUNCH_FACTORY_{chainId}` to view active
                   launches.
-                </CardDescription>
-              </CardHeader>
-            </Card>
-          ) : isFairLaunchLoading ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-40 rounded-xl" />
-              ))}
-            </div>
-          ) : fairLaunchError ? (
-            <Card className="border-destructive">
-              <CardHeader>
-                <CardTitle>Something went wrong</CardTitle>
-                <CardDescription>{fairLaunchError}</CardDescription>
-              </CardHeader>
-            </Card>
-          ) : fairLaunches.length === 0 ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>No launches yet</CardTitle>
-                <CardDescription>
+                </p>
+              </div>
+            ) : isFairLaunchLoading ? (
+              <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Skeleton key={i} className="h-72 rounded-2xl" />
+                ))}
+              </div>
+            ) : fairLaunchError ? (
+              <div className="rounded-2xl border border-destructive p-6">
+                <h3 className="font-bold">Something went wrong</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {fairLaunchError}
+                </p>
+              </div>
+            ) : fairLaunches.length === 0 ? (
+              <div className="flex flex-col items-center rounded-2xl border py-20 text-center">
+                <h2 className="text-lg font-bold">No launches yet</h2>
+                <p className="mt-1 max-w-sm text-sm text-muted-foreground">
                   Create your first launchpad and it will show up here
                   automatically.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button asChild>
-                  <Link href="/fair-launch">Create launch</Link>
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-6 md:grid-cols-2">
-              {fairLaunches.map((launch) => (
-                <FairLaunchCard
-                  key={launch.pool}
-                  launch={launch}
-                  chainId={chainId}
-                />
-              ))}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+                </p>
+                <Link
+                  href="/fair-launch"
+                  className="mt-5 rounded-full border px-6 py-2.5 text-sm font-medium transition-colors hover:bg-muted/50"
+                >
+                  Create launch
+                </Link>
+              </div>
+            ) : (
+              <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+                {fairLaunches.map((launch) => (
+                  <FairLaunchCard key={launch.pool} launch={launch} />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -518,204 +512,245 @@ function BondingCurvePoolCard({
   pool,
 }: {
   pool: BondingCurveSummary & { metadata?: TokenMetadata };
-  chainId: number;
 }) {
   const isGraduated = pool.state === 1;
-  const stateConfig =
-    bondingCurveStateLabels[pool.state] ?? bondingCurveStateLabels[0];
+  const statusLabel = bondingCurveStateLabels[pool.state] ?? "TRADING";
   const progress = Number(pool.progressBps) / 100;
   const priceFormatted = formatUnits(pool.currentPrice, 18);
   const mcapFormatted = formatUnits(pool.marketCap, 18);
   const detailHref = `/discover/${pool.pool}`;
 
   return (
-    <Card
-      className={cn(
-        "group flex h-full flex-col gap-0 overflow-hidden pt-0",
-        isGraduated && "ring-1 ring-emerald-500/20",
-      )}
-    >
-      <Link href={detailHref} className="relative block overflow-hidden">
-        {pool.metadata?.image_url ? (
-          <img
-            src={pool.metadata.image_url}
-            alt={pool.tokenName}
-            className="aspect-[16/10] w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-          />
-        ) : (
-          <div className="flex aspect-[16/10] w-full items-center justify-center bg-gradient-to-br from-muted via-muted/60 to-muted">
-            <span className="text-3xl font-bold text-muted-foreground/60">
-              {pool.tokenSymbol}
-            </span>
-          </div>
-        )}
-        <Badge
-          variant={stateConfig.variant}
-          className={cn(
-            "absolute bottom-2 right-2",
-            isGraduated &&
-              "border-emerald-500/20 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+    <Link href={detailHref} className="block">
+      <div className="rounded-2xl bg-card p-6 transition-colors hover:brightness-[0.98] dark:hover:brightness-110">
+        <div className="flex items-start gap-4">
+          {pool.metadata?.image_url ? (
+            <img
+              src={pool.metadata.image_url}
+              alt={pool.tokenName}
+              className="size-14 shrink-0 rounded-full object-cover"
+            />
+          ) : (
+            <div className="flex size-14 shrink-0 items-center justify-center rounded-full bg-muted text-lg font-bold text-muted-foreground">
+              {pool.tokenSymbol.slice(0, 2)}
+            </div>
           )}
-        >
-          {stateConfig.label}
-        </Badge>
-      </Link>
-      <div className="space-y-0.5 px-6 pt-4">
-        <Link href={detailHref}>
-          <p className="truncate text-base font-semibold transition-colors group-hover:text-primary">
-            {pool.tokenName}
-          </p>
-          <p className="text-sm text-muted-foreground">{pool.tokenSymbol}</p>
-        </Link>
-      </div>
-      <CardContent className="flex flex-1 flex-col justify-between gap-4 pt-3">
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>{isGraduated ? "Graduated" : "Progress to graduation"}</span>
-              <span>{progress.toFixed(1)}%</span>
-            </div>
-            <div className="h-4 w-full overflow-hidden rounded-full bg-muted/70 ring-1 ring-border/40">
-              <div
-                className={cn(
-                  "h-full rounded-full shadow-sm transition-all duration-500 ease-out",
-                  isGraduated
-                    ? "bg-gradient-to-r from-emerald-500/65 via-emerald-500 to-emerald-500/75 shadow-emerald-500/40"
-                    : "bg-gradient-to-r from-primary/65 via-primary to-primary/75 shadow-primary/40",
-                )}
-                style={{ width: `${Math.min(progress, 100)}%` }}
-              />
-            </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate text-lg font-bold">{pool.tokenName}</h3>
+            <p className="text-sm text-muted-foreground">{pool.tokenSymbol}</p>
           </div>
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div className="rounded-lg border bg-muted/40 p-2">
-              <p className="text-xs text-muted-foreground">Price</p>
-              <p className="font-medium">
-                {Number(priceFormatted).toFixed(9)} ZIL
-              </p>
-            </div>
-            <div className="rounded-lg border bg-muted/40 p-2">
-              <p className="text-xs text-muted-foreground">Market cap</p>
-              <p className="font-medium">
-                {Number(mcapFormatted).toLocaleString()} ZIL
-              </p>
-            </div>
+          <span
+            className={cn(
+              "shrink-0 rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-wider",
+              isGraduated
+                ? "border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+                : "border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400",
+            )}
+          >
+            {statusLabel}
+          </span>
+        </div>
+
+        <div className="my-5 border-t" />
+
+        <div className="grid grid-cols-2 gap-y-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Price
+            </p>
+            <p className="mt-0.5 text-sm font-bold">
+              {Number(priceFormatted).toFixed(6)} ZIL
+            </p>
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Market Cap
+            </p>
+            <p className="mt-0.5 text-sm font-bold">
+              {Number(mcapFormatted).toLocaleString()} ZIL
+            </p>
           </div>
         </div>
-        <Button
-          asChild
-          size="lg"
-          variant={isGraduated ? "secondary" : "default"}
-          className="w-full"
+
+        <div className="my-5 border-t" />
+
+        <div>
+          <div className="flex items-center justify-between text-xs font-semibold">
+            <span>{progress.toFixed(0)}%</span>
+            <span className="uppercase tracking-wider text-muted-foreground">
+              {isGraduated ? "Graduated" : "To graduation"}
+            </span>
+          </div>
+          <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className={cn(
+                "h-full rounded-full transition-all",
+                isGraduated ? "bg-emerald-500" : "bg-foreground",
+              )}
+              style={{ width: `${Math.min(progress, 100)}%` }}
+            />
+          </div>
+        </div>
+
+        <div className="my-5 border-t" />
+
+        <div
+          className={cn(
+            "flex items-center justify-center rounded-full py-2.5 text-sm font-medium",
+            isGraduated
+              ? "border text-foreground"
+              : "bg-foreground text-background",
+          )}
         >
-          <Link href={detailHref}>
-            <TrendingUp className="mr-1.5 size-4" />
-            {isGraduated ? "View" : "Trade"}
-          </Link>
-        </Button>
-      </CardContent>
-    </Card>
+          {isGraduated ? "View" : "Trade"}
+        </div>
+      </div>
+    </Link>
   );
 }
 
 function FairLaunchCard({
   launch,
-  chainId,
 }: {
   launch: FairLaunchSummary;
-  chainId: number;
 }) {
   const currencyMeta = getCurrencyMeta(launch.currency);
-  const statusConfig =
-    fairLaunchStatusLabels[launch.status] ?? fairLaunchStatusLabels[0];
+  const statusLabel = fairLaunchStatusLabels[launch.status] ?? "UPCOMING";
+  const isLive = launch.status === 1;
   const start = new Date(launch.startTime * 1000);
   const end = new Date(launch.endTime * 1000);
   const now = Date.now();
-  const isLive = launch.status === 1;
-  const startsIn = start.getTime() > now ? formatRelative(start) : "Started";
-  const endsIn = end.getTime() > now ? formatRelative(end) : "Ended";
+  const raised = formatTokenAmount(launch.totalRaised, currencyMeta.decimals);
+  const softCap = formatTokenAmount(launch.softCap, currencyMeta.decimals);
+  const progressPct =
+    Number(launch.softCap) > 0
+      ? Math.min(
+          (Number(launch.totalRaised) / Number(launch.softCap)) * 100,
+          100,
+        )
+      : 0;
+
+  const timeLabel = isLive
+    ? formatCountdown(end)
+    : start.getTime() > now
+      ? `Starts ${formatCountdown(start)}`
+      : "Ended";
+
+  const ctaLabel =
+    isLive ? "Invest" : launch.status === 0 ? "Notify Me" : "View";
 
   return (
-    <Card className="flex h-full flex-col overflow-hidden">
-      <div className="h-3 bg-gradient-to-r from-primary/60 via-primary to-primary/60" />
-      <CardHeader className="space-y-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base font-semibold">
-            {launch.tokenName}
-          </CardTitle>
-          <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
-        </div>
-        <div className="text-sm text-muted-foreground">
-          {formatAddress(launch.pool)}
-        </div>
-        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-          <span className="inline-flex items-center gap-1">
-            <TimerReset className="size-3.5" />{" "}
-            {isLive ? `Ends ${endsIn}` : `Starts ${startsIn}`}
+    <Link href={`/fair-launch/${launch.pool}`} className="block">
+      <div className="rounded-2xl bg-card p-6 transition-colors hover:brightness-[0.98] dark:hover:brightness-110">
+        <div className="flex items-start gap-4">
+          <div className="flex size-14 shrink-0 items-center justify-center rounded-full bg-muted text-lg font-bold text-muted-foreground">
+            {launch.tokenSymbol.slice(0, 2)}
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate text-lg font-bold">{launch.tokenName}</h3>
+            <p className="text-sm text-muted-foreground">
+              {launch.tokenSymbol}
+            </p>
+          </div>
+          <span
+            className={cn(
+              "shrink-0 rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-wider",
+              isLive
+                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                : "text-foreground",
+            )}
+          >
+            {statusLabel}
           </span>
-          <span className="inline-flex items-center gap-1">
-            <Wallet className="size-3.5" /> {currencyMeta.label}
-          </span>
         </div>
-      </CardHeader>
-      <CardContent className="flex flex-1 flex-col justify-between gap-4">
-        <div className="space-y-2 text-sm">
-          <StatRow
-            label="Total raised"
-            value={`${formatTokenAmount(launch.totalRaised, currencyMeta.decimals)} ${currencyMeta.symbol}`}
-          />
-          <StatRow
-            label="Tokens for sale"
-            value={`${formatTokenAmount(
-              launch.tokensForSale,
-              currencyMeta.decimals === 6 ? 18 : 18,
-            )} ${launch.tokenSymbol}`}
-          />
-          <StatRow
-            label="Soft cap"
-            value={`${formatTokenAmount(launch.softCap, currencyMeta.decimals)} ${currencyMeta.symbol}`}
-          />
+
+        <div className="my-5 border-t" />
+
+        <div className="grid grid-cols-2 gap-y-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Total Raise
+            </p>
+            <p className="mt-0.5 text-sm font-bold">
+              {softCap} {currencyMeta.symbol}
+            </p>
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Currency
+            </p>
+            <p className="mt-0.5 text-sm font-bold">{currencyMeta.label}</p>
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Raised
+            </p>
+            <p className="mt-0.5 text-sm font-bold">
+              {raised} {currencyMeta.symbol}
+            </p>
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Starts
+            </p>
+            <p className="mt-0.5 text-sm font-bold">
+              {start.getTime() > now
+                ? start.toLocaleDateString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "Now"}
+            </p>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button asChild size="lg" className="flex-1">
-            <Link href={`/fair-launch/${launch.pool}`}>View launch</Link>
-          </Button>
-          <Button asChild size="lg" variant="outline">
-            <a
-              href={addressUrl(chainId, launch.pool)}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Explorer
-              <ArrowUpRight className="ml-1 size-3.5" />
-            </a>
-          </Button>
+
+        <div className="my-5 border-t" />
+
+        <div>
+          <div className="flex items-center justify-between text-xs font-semibold">
+            <span>{progressPct.toFixed(0)}%</span>
+            <span className="uppercase tracking-wider text-muted-foreground">
+              {timeLabel}
+            </span>
+          </div>
+          <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-foreground transition-all"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
         </div>
-      </CardContent>
-    </Card>
+
+        <div className="my-5 border-t" />
+
+        <div
+          className={cn(
+            "flex items-center justify-center rounded-full py-2.5 text-sm font-medium",
+            isLive
+              ? "bg-foreground text-background"
+              : "border text-foreground",
+          )}
+        >
+          {ctaLabel}
+        </div>
+      </div>
+    </Link>
   );
 }
 
-function StatRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium">{value}</span>
-    </div>
-  );
-}
-
-function formatRelative(date: Date) {
+function formatCountdown(date: Date) {
   const diffMs = date.getTime() - Date.now();
+  if (diffMs <= 0) return "Now";
   const abs = Math.abs(diffMs);
-  const minutes = Math.round(abs / (60 * 1000));
-  if (minutes < 60) {
-    return `${minutes} min ${diffMs > 0 ? "from now" : "ago"}`;
+  const minutes = Math.floor(abs / (60 * 1000));
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  if (days > 0) {
+    const remainHours = hours % 24;
+    return `${String(days).padStart(2, "0")}D ${String(remainHours).padStart(2, "0")}H LEFT`;
   }
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) {
-    return `${hours} hr ${diffMs > 0 ? "from now" : "ago"}`;
-  }
-  const days = Math.round(hours / 24);
-  return `${days} day${days === 1 ? "" : "s"} ${diffMs > 0 ? "from now" : "ago"}`;
+  const remainMinutes = minutes % 60;
+  return `${String(hours).padStart(2, "0")}H ${String(remainMinutes).padStart(2, "0")}M LEFT`;
 }

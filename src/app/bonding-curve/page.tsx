@@ -1,6 +1,6 @@
 "use client";
 
-import { Globe, Loader2, Rocket, Send, Upload, X } from "lucide-react";
+import { Globe, Loader2, Send, Upload, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -13,20 +13,13 @@ import {
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
-import { useNetwork } from "@/providers/network";
-import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { abis, getBondingCurveFactoryAddress } from "@/lib/contracts";
+import { useNetwork } from "@/providers/network";
 
 export default function BondingCurveLaunchPage() {
   const router = useRouter();
@@ -251,18 +244,19 @@ export default function BondingCurveLaunchPage() {
   if (!factory) {
     return (
       <div className="space-y-8 pb-12">
-        <PageHeader
-          title="Bonding Curve"
-          description="Launch tokens with automatic liquidity via bonding curves"
-          icon={<Rocket className="size-6 text-primary" />}
-        />
-        <Card className="border-destructive">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Bonding Curve</h1>
+          <p className="mt-1 text-muted-foreground">
+            Launch tokens with automatic liquidity via bonding curves
+          </p>
+        </div>
+        <Card className="border border-destructive">
           <CardHeader>
             <CardTitle>Factory not configured</CardTitle>
-            <CardDescription>
+            <p className="text-sm text-muted-foreground">
               Set `NEXT_PUBLIC_BONDING_CURVE_FACTORY_{chainId}` to enable
               bonding curve pools.
-            </CardDescription>
+            </p>
           </CardHeader>
         </Card>
       </div>
@@ -271,20 +265,20 @@ export default function BondingCurveLaunchPage() {
 
   return (
     <div className="space-y-8 pb-12">
-      <PageHeader
-        title="Bonding Curve"
-        description="Launch tokens with automatic liquidity via bonding curves"
-        icon={<Rocket className="size-6 text-primary" />}
-      />
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Bonding Curve</h1>
+        <p className="mt-1 text-muted-foreground">
+          Launch tokens with automatic liquidity via bonding curves
+        </p>
+      </div>
 
-      {/* Create Token Card */}
       <Card>
         <CardHeader>
-          <CardTitle>Launch a token</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-xl font-bold">Launch a token</CardTitle>
+          <p className="text-sm text-muted-foreground">
             Create a new token with an instant bonding curve. Graduates to
             PlunderSwap at target market cap.
-          </CardDescription>
+          </p>
         </CardHeader>
         <CardContent className="space-y-6">
           {createdPool ? (
@@ -293,9 +287,7 @@ export default function BondingCurveLaunchPage() {
                 Token created successfully!
               </p>
               <Button asChild>
-                <Link href={`/discover/${createdPool}`}>
-                  View your token
-                </Link>
+                <Link href={`/discover/${createdPool}`}>View your token</Link>
               </Button>
               <Button
                 variant="ghost"
@@ -311,10 +303,10 @@ export default function BondingCurveLaunchPage() {
               <div className="mx-auto max-w-sm space-y-2">
                 <Label>Token image (optional)</Label>
                 <div
-                  className={`relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-10 transition-all cursor-pointer ${
+                  className={`relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-12 transition-colors cursor-pointer ${
                     isDragging
-                      ? "border-primary bg-primary/5 ring-4 ring-primary/10"
-                      : "border-muted-foreground/25 hover:border-muted-foreground/50 hover:ring-4 hover:ring-muted/40"
+                      ? "border-foreground bg-muted/50"
+                      : "border-border hover:bg-muted/50"
                   }`}
                   onDrop={handleDrop}
                   onDragOver={handleDragOver}
@@ -448,7 +440,7 @@ export default function BondingCurveLaunchPage() {
               <Button
                 onClick={handleCreate}
                 disabled={isSubmitting || !name.trim() || !symbol.trim()}
-                className="w-full"
+                className="w-full rounded-full text-base font-semibold"
                 size="lg"
               >
                 {isSubmitting && (

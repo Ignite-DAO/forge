@@ -24,23 +24,15 @@ import {
   useWriteContract,
 } from "wagmi";
 import { erc20Abi } from "@/abi/erc20";
-import { PageHeader } from "@/components/page-header";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { abis } from "@/lib/contracts";
 import { addressUrl } from "@/lib/explorer";
 import { formatAddress } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { useNetwork } from "@/providers/network";
 
 type TokenMetadata = {
@@ -79,6 +71,7 @@ export default function BondingCurvePoolPage() {
   const [buyTx, setBuyTx] = useState<`0x${string}` | null>(null);
   const [sellTx, setSellTx] = useState<`0x${string}` | null>(null);
   const [approveTx, setApproveTx] = useState<`0x${string}` | null>(null);
+  const [tradeTab, setTradeTab] = useState<"buy" | "sell">("buy");
 
   const poolContract = {
     abi: abis.forgeBondingCurvePool,
@@ -375,19 +368,17 @@ export default function BondingCurvePoolPage() {
     ? (stateLabels[pool.state] ?? stateLabels[0])
     : stateLabels[0];
   const progress = pool ? Number(pool.progressBps) / 100 : 0;
+  const isGraduated = pool?.state === 1;
 
   return (
     <div className="space-y-6 pb-10">
-      <Button
-        asChild
-        variant="ghost"
-        className="h-auto p-0 text-sm text-muted-foreground"
+      <Link
+        href="/discover"
+        className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-primary"
       >
-        <Link href="/discover" className="inline-flex items-center gap-2">
-          <ArrowLeft className="size-4" />
-          Back to launches
-        </Link>
-      </Button>
+        <ArrowLeft className="size-4" />
+        Back to launches
+      </Link>
 
       {isPoolLoading && !pool && (
         <div className="space-y-4">
@@ -397,72 +388,89 @@ export default function BondingCurvePoolPage() {
       )}
 
       {isPoolError && (
-        <Card className="border-destructive">
+        <Card className="border border-destructive">
           <CardHeader>
             <CardTitle>Unable to load pool</CardTitle>
-            <CardDescription>
+            <p className="text-sm text-muted-foreground">
               Failed to fetch pool data. Please check the address and try again.
-            </CardDescription>
+            </p>
           </CardHeader>
         </Card>
       )}
 
       {pool && (
         <>
-          <div className="flex items-start gap-4">
+          {/* Pool header */}
+          <div className="flex items-start gap-5">
             {metadata?.image_url ? (
               <img
                 src={metadata.image_url}
                 alt={pool.tokenName}
-                className="size-20 rounded-xl object-cover shrink-0"
+                className="size-16 shrink-0 rounded-full object-cover"
               />
             ) : (
-              <div className="size-20 rounded-xl bg-muted flex items-center justify-center shrink-0">
-                <span className="text-2xl font-bold text-muted-foreground">
+              <div className="flex size-16 shrink-0 items-center justify-center rounded-full bg-muted">
+                <span className="text-xl font-bold text-muted-foreground">
                   {pool.tokenSymbol.slice(0, 2)}
                 </span>
               </div>
             )}
-            <PageHeader
-              title={pool.tokenName}
-              description={`${pool.tokenSymbol} · ${formatAddress(pool.pool)}`}
-              icon={<TrendingUp className="size-6 text-primary" />}
-            />
+            <div className="min-w-0 pt-1">
+              <div className="flex items-center gap-3">
+                <h1 className="text-3xl font-bold">{pool.tokenName}</h1>
+                <span
+                  className={cn(
+                    "rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-wider",
+                    isGraduated &&
+                      "border-emerald-500/30 text-emerald-600 dark:text-emerald-400",
+                  )}
+                >
+                  {stateConfig.label}
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {pool.tokenSymbol}
+              </p>
+            </div>
           </div>
 
           {metadata?.description && (
-            <p className="text-muted-foreground">{metadata.description}</p>
+            <p className="text-sm text-muted-foreground">
+              {metadata.description}
+            </p>
           )}
 
           <div className="grid gap-6 md:grid-cols-[2fr_1fr]">
+            {/* Main column */}
             <div className="space-y-6">
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="text-xl">
-                        {pool.tokenSymbol}
-                      </CardTitle>
-                      <CardDescription>Bonding curve pool</CardDescription>
-                    </div>
-                    <Badge variant={stateConfig.variant}>
-                      {stateConfig.label}
-                    </Badge>
+                    <CardTitle className="text-lg font-bold">
+                      {pool.tokenSymbol}
+                    </CardTitle>
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Bonding curve
+                    </span>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-0">
+                  {/* Progress */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                         Progress to graduation
                       </span>
-                      <span className="font-medium">
+                      <span className="text-sm font-bold">
                         {progress.toFixed(1)}%
                       </span>
                     </div>
-                    <div className="h-3.5 w-full overflow-hidden rounded-full bg-muted/70 ring-1 ring-border/40">
+                    <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
                       <div
-                        className="h-full rounded-full bg-gradient-to-r from-primary/65 via-primary to-primary/75 shadow-sm shadow-primary/40 transition-all duration-500 ease-out"
+                        className={cn(
+                          "h-full rounded-full transition-all duration-500 ease-out",
+                          isGraduated ? "bg-emerald-500" : "bg-foreground",
+                        )}
                         style={{ width: `${Math.min(progress, 100)}%` }}
                       />
                     </div>
@@ -472,7 +480,10 @@ export default function BondingCurvePoolPage() {
                     </p>
                   </div>
 
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="my-5 border-t" />
+
+                  {/* Stats grid */}
+                  <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
                     <Stat
                       label="Current price"
                       value={`${Number(formatUnits(pool.currentPrice, 18)).toFixed(9)} ZIL`}
@@ -497,45 +508,44 @@ export default function BondingCurvePoolPage() {
                 </CardContent>
               </Card>
 
+              {/* How bonding curves work */}
               <Card>
                 <CardHeader>
                   <CardTitle>How bonding curves work</CardTitle>
-                  <CardDescription>
+                  <p className="text-sm text-muted-foreground">
                     Tokens launch with automatic pricing &mdash; no order books
                     needed
-                  </CardDescription>
+                  </p>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex gap-4 rounded-lg border bg-muted/30 p-4">
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                      <TrendingUp className="size-5" />
-                    </span>
+                <CardContent className="space-y-0">
+                  <div className="flex gap-4 border-t py-4">
+                    <TrendingUp className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
                     <div>
-                      <p className="font-medium">Buy &rarr; price goes up</p>
+                      <p className="text-sm font-medium">
+                        Buy &rarr; price goes up
+                      </p>
                       <p className="mt-0.5 text-sm text-muted-foreground">
                         Each purchase moves the price higher along a
                         mathematical curve. Earlier buyers get a lower price.
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-4 rounded-lg border bg-muted/30 p-4">
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                      <TrendingDown className="size-5" />
-                    </span>
+                  <div className="flex gap-4 border-t py-4">
+                    <TrendingDown className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
                     <div>
-                      <p className="font-medium">Sell &rarr; price goes down</p>
+                      <p className="text-sm font-medium">
+                        Sell &rarr; price goes down
+                      </p>
                       <p className="mt-0.5 text-sm text-muted-foreground">
                         Selling returns tokens to the pool and you receive ZIL.
                         The price adjusts down accordingly.
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-4 rounded-lg border bg-muted/30 p-4">
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500">
-                      <ExternalLink className="size-5" />
-                    </span>
+                  <div className="flex gap-4 border-t py-4">
+                    <ExternalLink className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
                     <div>
-                      <p className="font-medium">
+                      <p className="text-sm font-medium">
                         Graduate to PlunderSwap
                       </p>
                       <p className="mt-0.5 text-sm text-muted-foreground">
@@ -548,38 +558,58 @@ export default function BondingCurvePoolPage() {
                       </p>
                     </div>
                   </div>
-                  <p className="pt-1 text-xs text-muted-foreground">
+                  <p className="border-t pt-4 text-xs text-muted-foreground">
                     A {Number(pool.tradingFeePercent) / 100}% fee applies to
-                    each trade. No time limit &mdash; the curve stays open
-                    until graduation.
+                    each trade. No time limit &mdash; the curve stays open until
+                    graduation.
                   </p>
                 </CardContent>
               </Card>
             </div>
 
+            {/* Sidebar */}
             <div className="space-y-6">
               {isTrading && (
                 <Card>
                   <CardHeader>
                     <CardTitle>Trade</CardTitle>
-                    <CardDescription>
+                    <p className="text-sm text-muted-foreground">
                       Buy or sell {pool.tokenSymbol} tokens
-                    </CardDescription>
+                    </p>
                   </CardHeader>
-                  <CardContent>
-                    <Tabs defaultValue="buy">
-                      <TabsList className="w-full">
-                        <TabsTrigger value="buy" className="flex-1">
-                          <TrendingUp className="mr-1.5 size-4" />
-                          Buy
-                        </TabsTrigger>
-                        <TabsTrigger value="sell" className="flex-1">
-                          <TrendingDown className="mr-1.5 size-4" />
-                          Sell
-                        </TabsTrigger>
-                      </TabsList>
+                  <CardContent className="space-y-4">
+                    {/* Trade tab pills */}
+                    <div className="inline-flex w-full rounded-full border p-1">
+                      <button
+                        type="button"
+                        onClick={() => setTradeTab("buy")}
+                        className={cn(
+                          "flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors",
+                          tradeTab === "buy"
+                            ? "bg-foreground text-background"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        <TrendingUp className="size-4" />
+                        Buy
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTradeTab("sell")}
+                        className={cn(
+                          "flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors",
+                          tradeTab === "sell"
+                            ? "bg-foreground text-background"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        <TrendingDown className="size-4" />
+                        Sell
+                      </button>
+                    </div>
 
-                      <TabsContent value="buy" className="space-y-4 pt-4">
+                    {tradeTab === "buy" && (
+                      <div className="space-y-4">
                         <div className="space-y-2">
                           <Label>Amount (ZIL)</Label>
                           <Input
@@ -612,12 +642,13 @@ export default function BondingCurvePoolPage() {
                           </div>
                         </div>
                         {buyQuote && (
-                          <div className="rounded-lg border bg-muted/40 p-3 text-sm space-y-1">
-                            <div className="flex justify-between">
+                          <div className="space-y-2 text-sm">
+                            <div className="border-t" />
+                            <div className="flex justify-between pt-1">
                               <span className="text-muted-foreground">
                                 You will receive
                               </span>
-                              <span className="font-medium">
+                              <span className="font-bold">
                                 {Number(
                                   formatUnits(buyQuote.tokensOut, 18),
                                 ).toLocaleString()}{" "}
@@ -638,16 +669,19 @@ export default function BondingCurvePoolPage() {
                             !buyAmount ||
                             !buyQuote
                           }
-                          className="w-full"
+                          variant="outline"
+                          className="w-full rounded-full"
                         >
                           {(isWriting || isBuyConfirming) && (
                             <Loader2 className="mr-2 size-4 animate-spin" />
                           )}
                           {isBuyConfirming ? "Confirming..." : "Buy"}
                         </Button>
-                      </TabsContent>
+                      </div>
+                    )}
 
-                      <TabsContent value="sell" className="space-y-4 pt-4">
+                    {tradeTab === "sell" && (
+                      <div className="space-y-4">
                         <div className="space-y-2">
                           <Label>Amount ({pool.tokenSymbol})</Label>
                           <Input
@@ -682,12 +716,13 @@ export default function BondingCurvePoolPage() {
                           </div>
                         </div>
                         {sellQuote && (
-                          <div className="rounded-lg border bg-muted/40 p-3 text-sm space-y-1">
-                            <div className="flex justify-between">
+                          <div className="space-y-2 text-sm">
+                            <div className="border-t" />
+                            <div className="flex justify-between pt-1">
                               <span className="text-muted-foreground">
                                 You will receive
                               </span>
-                              <span className="font-medium">
+                              <span className="font-bold">
                                 {formatUnits(sellQuote.zilOut, 18)} ZIL
                               </span>
                             </div>
@@ -703,8 +738,8 @@ export default function BondingCurvePoolPage() {
                             disabled={
                               isWriting || isApproveConfirming || !sellAmount
                             }
-                            className="w-full"
-                            variant="secondary"
+                            variant="outline"
+                            className="w-full rounded-full"
                           >
                             {(isWriting || isApproveConfirming) && (
                               <Loader2 className="mr-2 size-4 animate-spin" />
@@ -720,7 +755,8 @@ export default function BondingCurvePoolPage() {
                               !sellAmount ||
                               !sellQuote
                             }
-                            className="w-full"
+                            variant="outline"
+                            className="w-full rounded-full"
                           >
                             {(isWriting || isSellConfirming) && (
                               <Loader2 className="mr-2 size-4 animate-spin" />
@@ -728,8 +764,8 @@ export default function BondingCurvePoolPage() {
                             {isSellConfirming ? "Confirming..." : "Sell"}
                           </Button>
                         )}
-                      </TabsContent>
-                    </Tabs>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               )}
@@ -738,20 +774,23 @@ export default function BondingCurvePoolPage() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Graduated</CardTitle>
-                    <CardDescription>
+                    <p className="text-sm text-muted-foreground">
                       This token has graduated to PlunderSwap
-                    </CardDescription>
+                    </p>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <p className="text-sm text-muted-foreground">
                       Trading is now available on PlunderSwap. The bonding curve
                       has completed.
                     </p>
+                    <div className="border-t" />
                     <div className="flex items-center justify-between gap-3 text-sm">
-                      <span className="text-muted-foreground">Token</span>
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        Token
+                      </span>
                       <button
                         type="button"
-                        className="flex items-center gap-1.5 font-medium hover:text-primary transition-colors"
+                        className="flex items-center gap-1.5 text-sm font-bold transition-colors hover:text-primary"
                         onClick={() => {
                           navigator.clipboard.writeText(pool.token);
                           toast.success("Address copied", {
@@ -763,7 +802,11 @@ export default function BondingCurvePoolPage() {
                         <Copy className="size-3.5" />
                       </button>
                     </div>
-                    <Button asChild className="w-full">
+                    <Button
+                      asChild
+                      variant="outline"
+                      className="w-full rounded-full"
+                    >
                       <a
                         href={`https://plunderswap.com/swap?outputCurrency=${pool.token}`}
                         target="_blank"
@@ -777,47 +820,62 @@ export default function BondingCurvePoolPage() {
                 </Card>
               )}
 
+              {/* Launch details */}
               <Card>
                 <CardHeader>
                   <CardTitle>Launch details</CardTitle>
-                  <CardDescription>
-                    Creator and deployment metadata
-                  </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="rounded-lg border bg-muted/30 p-3">
-                    <p className="text-xs text-muted-foreground">Creator</p>
+                <CardContent className="space-y-0 text-sm">
+                  <div className="flex items-center justify-between gap-3 border-t py-3">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Creator
+                    </span>
                     <a
                       href={addressUrl(chainId, pool.creator)}
                       target="_blank"
                       rel="noreferrer"
-                      className="mt-1 inline-flex items-center gap-1.5 text-sm font-semibold hover:text-primary transition-colors"
+                      className="inline-flex items-center gap-1.5 text-sm font-bold transition-colors hover:text-primary"
                     >
                       {formatAddress(pool.creator)}
                       <ExternalLink className="size-3.5" />
                     </a>
                   </div>
-                  <div className="space-y-3 text-sm">
-                    <DetailRow label="Pool">
+                  <div className="flex items-center justify-between gap-3 border-t py-3">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Pool
+                    </span>
+                    <span className="text-sm font-bold">
                       {formatAddress(pool.pool)}
-                    </DetailRow>
-                    <DetailRow label="Token">
-                      {formatAddress(pool.token)}
-                    </DetailRow>
+                    </span>
                   </div>
-                  <Button asChild variant="outline" className="w-full">
-                    <a
-                      href={addressUrl(chainId, pool.pool)}
-                      target="_blank"
-                      rel="noreferrer"
+                  <div className="flex items-center justify-between gap-3 border-t py-3">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Token
+                    </span>
+                    <span className="text-sm font-bold">
+                      {formatAddress(pool.token)}
+                    </span>
+                  </div>
+                  <div className="border-t pt-4">
+                    <Button
+                      asChild
+                      variant="outline"
+                      className="w-full rounded-full"
                     >
-                      View on Explorer
-                      <ExternalLink className="ml-1.5 size-3.5" />
-                    </a>
-                  </Button>
+                      <a
+                        href={addressUrl(chainId, pool.pool)}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        View on Explorer
+                        <ExternalLink className="ml-1.5 size-3.5" />
+                      </a>
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
 
+              {/* Links */}
               {(metadata?.website ||
                 metadata?.twitter ||
                 metadata?.telegram) && (
@@ -825,7 +883,7 @@ export default function BondingCurvePoolPage() {
                   <CardHeader>
                     <CardTitle>Links</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-2">
+                  <CardContent className="space-y-0">
                     {metadata.website && (
                       <a
                         href={
@@ -835,13 +893,13 @@ export default function BondingCurvePoolPage() {
                         }
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center gap-2 rounded-lg border p-2.5 text-sm hover:bg-muted/40 transition-colors"
+                        className="flex items-center gap-2 border-t py-3 text-sm transition-colors hover:text-primary"
                       >
                         <Globe className="size-4 text-muted-foreground" />
                         <span className="truncate">
                           {metadata.website.replace(/^https?:\/\//, "")}
                         </span>
-                        <ExternalLink className="size-3 ml-auto text-muted-foreground" />
+                        <ExternalLink className="ml-auto size-3 text-muted-foreground" />
                       </a>
                     )}
                     {metadata.twitter && (
@@ -849,7 +907,7 @@ export default function BondingCurvePoolPage() {
                         href={`https://x.com/${metadata.twitter.replace("@", "")}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center gap-2 rounded-lg border p-2.5 text-sm hover:bg-muted/40 transition-colors"
+                        className="flex items-center gap-2 border-t py-3 text-sm transition-colors hover:text-primary"
                       >
                         <svg
                           className="size-4 text-muted-foreground"
@@ -859,7 +917,7 @@ export default function BondingCurvePoolPage() {
                           <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                         </svg>
                         <span>@{metadata.twitter.replace("@", "")}</span>
-                        <ExternalLink className="size-3 ml-auto text-muted-foreground" />
+                        <ExternalLink className="ml-auto size-3 text-muted-foreground" />
                       </a>
                     )}
                     {metadata.telegram && (
@@ -871,7 +929,7 @@ export default function BondingCurvePoolPage() {
                         }
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center gap-2 rounded-lg border p-2.5 text-sm hover:bg-muted/40 transition-colors"
+                        className="flex items-center gap-2 border-t py-3 text-sm transition-colors hover:text-primary"
                       >
                         <Send className="size-4 text-muted-foreground" />
                         <span className="truncate">
@@ -879,7 +937,7 @@ export default function BondingCurvePoolPage() {
                             .replace(/^https?:\/\/t\.me\//, "")
                             .replace("t.me/", "")}
                         </span>
-                        <ExternalLink className="size-3 ml-auto text-muted-foreground" />
+                        <ExternalLink className="ml-auto size-3 text-muted-foreground" />
                       </a>
                     )}
                   </CardContent>
@@ -895,25 +953,11 @@ export default function BondingCurvePoolPage() {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border bg-muted/40 p-3 text-sm">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-base font-semibold">{value}</p>
+    <div>
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-1 text-sm font-bold">{value}</p>
     </div>
   );
 }
-
-function DetailRow({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3 text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium text-right">{children}</span>
-    </div>
-  );
-}
-

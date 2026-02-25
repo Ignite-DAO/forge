@@ -5,7 +5,6 @@ import {
   Copy,
   ExternalLink,
   Loader2,
-  Wallet,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -18,16 +17,13 @@ import {
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
-import { useNetwork } from "@/providers/network";
 import { z } from "zod";
-import { PageHeader } from "@/components/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
@@ -37,6 +33,7 @@ import { Label } from "@/components/ui/label";
 import { abis, getFactoryAddress } from "@/lib/contracts";
 import { addressUrl, txUrl } from "@/lib/explorer";
 import { nf, tryFormatUnits } from "@/lib/format";
+import { useNetwork } from "@/providers/network";
 
 export default function CreateTokenPage() {
   const { address, isConnected } = useAccount();
@@ -211,11 +208,13 @@ export default function CreateTokenPage() {
   });
 
   return (
-    <div className="space-y-4">
-      <PageHeader
-        title="Create Token"
-        description="Configure name, symbol, decimals and supply."
-      />
+    <div className="space-y-8 pb-12">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Create Token</h1>
+        <p className="mt-1 text-muted-foreground">
+          Configure name, symbol, decimals and supply.
+        </p>
+      </div>
 
       {!factory && (
         <Alert variant="destructive">
@@ -230,85 +229,87 @@ export default function CreateTokenPage() {
       <Card>
         <form onSubmit={onSubmit} className="space-y-4">
           <CardHeader>
-            <CardTitle>Create token</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-xl font-bold">Create token</CardTitle>
+            <p className="text-sm text-muted-foreground">
               Set token metadata and total supply.
-            </CardDescription>
+            </p>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="grid gap-1.5">
-                <Label htmlFor="name">Name</Label>
-                <Input id="name" placeholder="My Token" {...register("name")} />
-                {errors.name && (
-                  <p className="text-xs text-destructive mt-1">
-                    {errors.name.message}
-                  </p>
-                )}
+          <CardContent className="space-y-6">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="name">Name</Label>
+                  <Input
+                    id="name"
+                    placeholder="My Token"
+                    {...register("name")}
+                  />
+                  {errors.name && (
+                    <p className="text-xs text-destructive mt-1">
+                      {errors.name.message}
+                    </p>
+                  )}
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="symbol">Symbol</Label>
+                  <Input
+                    id="symbol"
+                    maxLength={11}
+                    placeholder="MTK"
+                    {...register("symbol")}
+                  />
+                  {errors.symbol && (
+                    <p className="text-xs text-destructive mt-1">
+                      {errors.symbol.message}
+                    </p>
+                  )}
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="decimals">Decimals (0-18)</Label>
+                  <Input
+                    id="decimals"
+                    type="number"
+                    min={0}
+                    max={18}
+                    {...register("decimals", { valueAsNumber: true })}
+                  />
+                  {errors.decimals && (
+                    <p className="text-xs text-destructive mt-1">
+                      {errors.decimals.message}
+                    </p>
+                  )}
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="supply">Total Supply (whole tokens)</Label>
+                  <Input
+                    id="supply"
+                    placeholder="1000000"
+                    {...register("supply")}
+                  />
+                  {errors.supply && (
+                    <p className="text-xs text-destructive mt-1">
+                      {errors.supply.message}
+                    </p>
+                  )}
+                </div>
               </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="symbol">Symbol</Label>
-                <Input
-                  id="symbol"
-                  maxLength={11}
-                  placeholder="MTK"
-                  {...register("symbol")}
-                />
-                {errors.symbol && (
-                  <p className="text-xs text-destructive mt-1">
-                    {errors.symbol.message}
-                  </p>
-                )}
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="decimals">Decimals (0–18)</Label>
-                <Input
-                  id="decimals"
-                  type="number"
-                  min={0}
-                  max={18}
-                  {...register("decimals", { valueAsNumber: true })}
-                />
-                {errors.decimals && (
-                  <p className="text-xs text-destructive mt-1">
-                    {errors.decimals.message}
-                  </p>
-                )}
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="supply">Total Supply (whole tokens)</Label>
-                <Input
-                  id="supply"
-                  placeholder="1000000"
-                  {...register("supply")}
-                />
-                {errors.supply && (
-                  <p className="text-xs text-destructive mt-1">
-                    {errors.supply.message}
-                  </p>
-                )}
-              </div>
-            </div>
 
-            <div className="flex items-center justify-end text-xs text-muted-foreground">
-              <div>
-                <span>Fee: </span>
-                <span>
-                  {fee
-                    ? `${nf().format(Number(tryFormatUnits(fee, 18)))} ZIL`
-                    : "—"}
-                </span>
-              </div>
-            </div>
+            <p className="text-sm text-muted-foreground">
+              Creation fee:{" "}
+              {fee
+                ? `${nf().format(Number(tryFormatUnits(fee, 18)))} ZIL`
+                : "---"}
+            </p>
           </CardContent>
           <CardFooter className="flex gap-2">
             <Button
               type="submit"
               disabled={!canSubmit || isPending}
               aria-busy={isPending}
+              className="rounded-full text-base font-semibold"
+              size="lg"
             >
               {isPending && <Loader2 className="animate-spin" />}
-              {isPending ? "Confirm in wallet…" : "Create Token"}
+              {isPending ? "Confirm in wallet..." : "Create Token"}
             </Button>
             {hash && (
               <Button asChild variant="outline">
@@ -321,7 +322,7 @@ export default function CreateTokenPage() {
 
           {isConfirming && (
             <p className="text-xs text-muted-foreground px-6 pb-4">
-              Waiting for confirmations…
+              Waiting for confirmations...
             </p>
           )}
         </form>
@@ -336,87 +337,118 @@ export default function CreateTokenPage() {
               </Badge>
               <CardTitle className="text-base">Token created</CardTitle>
             </div>
-            <CardDescription>
+            <p className="text-sm text-muted-foreground">
               Your token is live. Full supply has been minted to your wallet.
-            </CardDescription>
+            </p>
           </CardHeader>
           <CardContent className="space-y-4 text-sm">
-            <div className="grid sm:grid-cols-2 gap-2">
-              <div className="text-muted-foreground">Name</div>
-              <div className="font-medium">{created.name}</div>
-              <div className="text-muted-foreground">Symbol</div>
-              <div className="font-medium">{created.symbol}</div>
-              <div className="text-muted-foreground">Decimals</div>
-              <div className="font-medium">{created.decimals}</div>
-              <div className="text-muted-foreground">Total Supply</div>
-              <div className="font-medium">
-                {tryFormatUnits(created.supply, created.decimals)}
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
+                  Name
+                </div>
+                <div className="font-medium">{created.name}</div>
               </div>
-              <div className="text-muted-foreground">Address</div>
-              <div className="font-medium flex items-center gap-2">
-                <a
-                  href={addressUrl(chainId, created.token)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline font-mono"
-                >
-                  {created.token.slice(0, 6)}…{created.token.slice(-4)}
-                </a>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    navigator.clipboard.writeText(created.token).then(() =>
-                      toast.success("Address copied", {
-                        description: created.token,
-                      }),
-                    );
-                  }}
-                >
-                  <Copy className="size-4" /> Copy
-                </Button>
+              <div>
+                <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
+                  Symbol
+                </div>
+                <div className="font-medium">{created.symbol}</div>
               </div>
-              <div className="text-muted-foreground">Transaction</div>
-              <div className="font-medium">
-                <a
-                  href={txUrl(chainId, created.txHash)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline"
-                >
-                  {created.txHash.slice(0, 8)}…
-                </a>
+              <div>
+                <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
+                  Decimals
+                </div>
+                <div className="font-medium">{created.decimals}</div>
               </div>
-              <div className="text-muted-foreground">Minted To</div>
-              <div className="font-medium flex items-center gap-2">
-                <a
-                  href={addressUrl(chainId, created.creator)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline font-mono"
-                >
-                  {created.creator.slice(0, 6)}…{created.creator.slice(-4)}
-                </a>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    navigator.clipboard.writeText(created.creator).then(() =>
-                      toast.success("Address copied", {
-                        description: created.creator,
-                      }),
-                    );
-                  }}
-                >
-                  <Copy className="size-4" /> Copy
-                </Button>
+              <div>
+                <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
+                  Total Supply
+                </div>
+                <div className="font-medium">
+                  {tryFormatUnits(created.supply, created.decimals)}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
+                  Address
+                </div>
+                <div className="font-medium flex items-center gap-2">
+                  <a
+                    href={addressUrl(chainId, created.token)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-muted-foreground hover:underline font-mono"
+                  >
+                    {created.token.slice(0, 6)}...{created.token.slice(-4)}
+                  </a>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      navigator.clipboard.writeText(created.token).then(() =>
+                        toast.success("Address copied", {
+                          description: created.token,
+                        }),
+                      );
+                    }}
+                  >
+                    <Copy className="size-4" /> Copy
+                  </Button>
+                </div>
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
+                  Transaction
+                </div>
+                <div className="font-medium">
+                  <a
+                    href={txUrl(chainId, created.txHash)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-muted-foreground hover:underline"
+                  >
+                    {created.txHash.slice(0, 8)}...
+                  </a>
+                </div>
+              </div>
+              <div className="sm:col-span-2">
+                <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
+                  Minted To
+                </div>
+                <div className="font-medium flex items-center gap-2">
+                  <a
+                    href={addressUrl(chainId, created.creator)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-muted-foreground hover:underline font-mono"
+                  >
+                    {created.creator.slice(0, 6)}...
+                    {created.creator.slice(-4)}
+                  </a>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      navigator.clipboard
+                        .writeText(created.creator)
+                        .then(() =>
+                          toast.success("Address copied", {
+                            description: created.creator,
+                          }),
+                        );
+                    }}
+                  >
+                    <Copy className="size-4" /> Copy
+                  </Button>
+                </div>
               </div>
             </div>
 
             <div className="flex flex-wrap gap-2 pt-2">
-              <Button asChild variant="outline">
+              <Button asChild size="lg" className="rounded-full font-semibold">
                 <a
                   href={addressUrl(chainId, created.token)}
                   target="_blank"
@@ -425,7 +457,7 @@ export default function CreateTokenPage() {
                   <ExternalLink className="size-4" /> View on Explorer
                 </a>
               </Button>
-              <Button asChild variant="outline">
+              <Button asChild variant="outline" size="lg">
                 <a
                   href={txUrl(chainId, created.txHash)}
                   target="_blank"

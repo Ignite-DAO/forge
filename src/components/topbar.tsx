@@ -12,7 +12,7 @@ export function Topbar({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
           <img
             src="/logo.png"
             alt="Torchpad"
-            className="h-8 brightness-0 dark:brightness-100"
+            className="h-8"
             height={32}
           />
         </a>

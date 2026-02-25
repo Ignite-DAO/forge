@@ -111,28 +111,28 @@ export default function FAQPage() {
   return (
     <div className="space-y-8 pb-12">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <h1 className="text-3xl font-bold tracking-tight">
           Frequently Asked Questions
         </h1>
-        <p className="text-muted-foreground mt-1">
-          Common questions about using Torchpad.
+        <p className="text-muted-foreground mt-2">
+          Everything you need to know about using Torchpad.
         </p>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-8">
         {faqCategories.map((category) => (
           <section key={category.title}>
-            <h2 className="text-lg font-medium mb-3">{category.title}</h2>
+            <h2 className="text-lg font-semibold mb-3">{category.title}</h2>
             <Accordion
               type="single"
               collapsible
-              className="rounded-xl border border-border"
+              className="rounded-2xl border border-border"
             >
               {category.questions.map((item, index) => (
                 <AccordionItem
                   key={index}
                   value={`${category.title}-${index}`}
-                  className="px-4"
+                  className="px-5"
                 >
                   <AccordionTrigger>{item.q}</AccordionTrigger>
                   <AccordionContent className="text-muted-foreground">

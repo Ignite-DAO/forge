@@ -11,19 +11,11 @@ import {
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
-import { useNetwork } from "@/providers/network";
 import { z } from "zod";
 import { erc20Abi } from "@/abi/erc20";
-import { PageHeader } from "@/components/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -37,6 +29,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { abis, getAirdropperAddress } from "@/lib/contracts";
 import { nf, tryFormatUnits } from "@/lib/format";
+import { useNetwork } from "@/providers/network";
 
 type Row = { address: string; amount: string };
 
@@ -169,20 +162,24 @@ export default function AirdropPage() {
   }
 
   return (
-    <div className="space-y-4">
-      <PageHeader
-        title="Airdrop"
-        description="Paste recipients and amounts to distribute tokens."
-      />
+    <div className="space-y-8 pb-12">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Airdrop</h1>
+        <p className="mt-1 text-muted-foreground">
+          Paste recipients and amounts to distribute tokens.
+        </p>
+      </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Batch distribution</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-xl font-bold">
+            Batch distribution
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
             Paste CSV or a list of address,amount per line.
-          </CardDescription>
+          </p>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
           {!airdropper && (
             <Alert variant="destructive">
               <AlertTitle>Airdropper not configured</AlertTitle>
@@ -208,7 +205,7 @@ export default function AirdropPage() {
               <Input
                 value={decimals?.toString() ?? ""}
                 readOnly
-                placeholder="—"
+                placeholder="---"
               />
             </div>
           </div>
@@ -218,6 +215,7 @@ export default function AirdropPage() {
             <Textarea
               id="rows"
               rows={8}
+              className="p-4"
               placeholder="0xabc...,100\n0xdef...,250"
               {...register("rows")}
             />
@@ -228,20 +226,26 @@ export default function AirdropPage() {
             )}
           </div>
 
-          <div className="text-xs text-muted-foreground flex items-center gap-4">
-            <div>Rows: {rows.length}</div>
-            <div>Total: {nf().format(Number(total))} wei</div>
-            <div>Allowance: {allowance ? allowance.toString() : "—"}</div>
-            <div>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span className="rounded-lg border px-3 py-1.5">
+              Rows: {rows.length}
+            </span>
+            <span className="rounded-lg border px-3 py-1.5">
+              Total: {nf().format(Number(total))} wei
+            </span>
+            <span className="rounded-lg border px-3 py-1.5">
+              Allowance: {allowance ? allowance.toString() : "---"}
+            </span>
+            <span className="rounded-lg border px-3 py-1.5">
               Fee:{" "}
               {dropFee && dropFee > 0n
                 ? `${nf().format(Number(tryFormatUnits(dropFee, 18)))} ZIL`
-                : "—"}
-            </div>
+                : "---"}
+            </span>
             {invalidRows.length > 0 && (
-              <div className="text-destructive">
+              <span className="rounded-lg border border-destructive/50 bg-destructive/10 px-3 py-1.5 text-destructive">
                 Invalid rows: {invalidRows.length}
-              </div>
+              </span>
             )}
           </div>
 
@@ -262,7 +266,7 @@ export default function AirdropPage() {
                     return (
                       <TableRow
                         key={idx}
-                        className={invalid ? "bg-destructive/5" : undefined}
+                        className={invalid ? "bg-destructive/10" : undefined}
                       >
                         <TableCell className="font-mono text-xs">
                           {r.address}
@@ -281,10 +285,12 @@ export default function AirdropPage() {
             </div>
           )}
 
-          <div className="flex gap-2 pt-2">
+          <div className="flex gap-3 pt-2">
             <Button
               type="button"
               variant="outline"
+              size="lg"
+              className="rounded-full font-semibold"
               disabled={
                 !ready || (allowance ?? BigInt(0)) >= total || isPending
               }
@@ -294,11 +300,13 @@ export default function AirdropPage() {
                 <Loader2 className="animate-spin" />
               )}
               {isPending && action === "approve"
-                ? "Confirm in wallet…"
+                ? "Confirm in wallet..."
                 : "Approve"}
             </Button>
             <Button
               type="button"
+              size="lg"
+              className="rounded-full font-semibold"
               disabled={!ready || (allowance ?? BigInt(0)) < total || isPending}
               onClick={onAirdrop}
             >
@@ -306,14 +314,14 @@ export default function AirdropPage() {
                 <Loader2 className="animate-spin" />
               )}
               {isPending && action === "airdrop"
-                ? "Confirm in wallet…"
+                ? "Confirm in wallet..."
                 : "Run Airdrop"}
             </Button>
           </div>
 
           {isConfirming && (
             <p className="text-xs text-muted-foreground">
-              Waiting for confirmations…
+              Waiting for confirmations...
             </p>
           )}
           {isConfirmed && (
