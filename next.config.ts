@@ -7,7 +7,6 @@ if (process.env.NODE_ENV === "development") {
 }
 
 const nextConfig: NextConfig = {
-  distDir: process.env.NEXT_BUILD_DIR || ".next",
   images: {
     remotePatterns: [
       {
