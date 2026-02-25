@@ -87,7 +87,7 @@ function TorchWalletBanner() {
         <div className="flex flex-col">
           <span className="text-[15px] font-semibold">Torch Wallet</span>
           <span className="text-xs text-muted-foreground">
-            Zilliqa&apos;s most advanced wallet
+            Bonded tokens are tradable instantly.
           </span>
         </div>
       </div>
@@ -97,7 +97,7 @@ function TorchWalletBanner() {
         rel="noopener noreferrer"
         className="mt-3 flex items-center justify-center rounded-full bg-foreground py-2 text-sm font-medium text-background transition-colors hover:bg-foreground/90"
       >
-        Get Torch
+        Start now
       </a>
     </div>
   );
