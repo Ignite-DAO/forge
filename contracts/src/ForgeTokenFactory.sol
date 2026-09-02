@@ -14,6 +14,7 @@ contract ForgeTokenFactory is Ownable2Step, ReentrancyGuard {
     using Address for address payable;
 
     error InsufficientFee(uint256 required, uint256 provided);
+    error InvalidParam();
 
     event TokenCreated(
         address indexed token,
@@ -40,6 +41,7 @@ contract ForgeTokenFactory is Ownable2Step, ReentrancyGuard {
     }
 
     function setTreasury(address newTreasury) external onlyOwner {
+        if (newTreasury == address(0)) revert InvalidParam();
         emit TreasuryUpdated(treasury, newTreasury);
         treasury = newTreasury;
     }
@@ -73,7 +75,7 @@ contract ForgeTokenFactory is Ownable2Step, ReentrancyGuard {
         uint8 decimals,
         uint256 supply
     ) internal returns (address token) {
-        if (fee > 0 && msg.value < fee) revert InsufficientFee(fee, msg.value);
+        if (msg.value < fee) revert InsufficientFee(fee, msg.value);
         require(decimals <= 18, "decimals > 18");
         require(supply > 0, "supply = 0");
 
@@ -81,13 +83,11 @@ contract ForgeTokenFactory is Ownable2Step, ReentrancyGuard {
         emit TokenCreated(token, msg.sender, name, symbol, decimals, supply);
 
         if (fee > 0) {
-            if (treasury != address(0)) {
-                payable(treasury).sendValue(fee); // reverts on failure
-            }
-            uint256 refund = msg.value - fee;
-            if (refund > 0) {
-                payable(msg.sender).sendValue(refund);
-            }
+            payable(treasury).sendValue(fee);
+        }
+        uint256 refund = msg.value - fee;
+        if (refund > 0) {
+            payable(msg.sender).sendValue(refund);
         }
     }
 

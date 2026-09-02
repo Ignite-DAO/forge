@@ -54,6 +54,7 @@ contract ForgeFairLaunchFactory is Ownable2Step, ReentrancyGuard {
     address[] public allLaunches;
 
     constructor(address _treasury, address _usdc, FairLaunchRouterConfig memory _routers) Ownable(msg.sender) {
+        if (_treasury == address(0)) revert InvalidParam();
         treasury = _treasury;
         usdcToken = _usdc;
         routerConfig = _routers;
@@ -65,6 +66,7 @@ contract ForgeFairLaunchFactory is Ownable2Step, ReentrancyGuard {
     }
 
     function setTreasury(address newTreasury) external onlyOwner {
+        if (newTreasury == address(0)) revert InvalidParam();
         emit TreasuryUpdated(treasury, newTreasury);
         treasury = newTreasury;
     }
@@ -141,10 +143,16 @@ contract ForgeFairLaunchFactory is Ownable2Step, ReentrancyGuard {
         );
     }
 
+    function withdraw() external onlyOwner {
+        uint256 bal = address(this).balance;
+        if (bal > 0) {
+            payable(owner()).sendValue(bal);
+        }
+    }
+
     function _collectFee() internal {
-        if (creationFee == 0) return;
         if (msg.value < creationFee) revert InsufficientFee(creationFee, msg.value);
-        if (treasury != address(0)) {
+        if (creationFee > 0) {
             payable(treasury).sendValue(creationFee);
         }
         uint256 refund = msg.value - creationFee;

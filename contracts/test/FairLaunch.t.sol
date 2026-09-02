@@ -22,6 +22,8 @@ contract FairLaunchTest is Test {
     address bob = address(0xC0FFEE);
     address treasury = address(0xDAD);
 
+    receive() external payable {}
+
     function setUp() public {
         saleToken = new ForgeStandardERC20("Sale Token", "SALE", 18, 10_000_000 ether, address(this));
         usdc = new ForgeStandardERC20("USD Coin", "USDC", 6, 10_000_000e6, address(this));
@@ -168,6 +170,78 @@ contract FairLaunchTest is Test {
         vm.prank(creator);
         pool.withdrawCreatorProceeds(payable(creator));
         assertEq(usdc.balanceOf(creator), creatorUsdcBefore + totalRaised, "creator received USDC proceeds");
+    }
+
+    function test_Refund_SuccessfulSale_Reverts() public {
+        FairLaunchCreateParams memory params = _defaultParams(FairLaunchCurrency.ZIL);
+        uint256 required = _tokensRequired(params);
+        saleToken.transfer(creator, required);
+
+        vm.startPrank(creator);
+        saleToken.approve(address(factory), required);
+        address poolAddr = factory.createLaunch(params);
+        vm.stopPrank();
+        ForgeFairLaunchPool pool = ForgeFairLaunchPool(payable(poolAddr));
+
+        vm.warp(params.startTime + 1);
+        vm.deal(alice, 6 ether);
+        vm.prank(alice);
+        pool.contribute{value: 6 ether}(0, new bytes32[](0));
+
+        vm.warp(params.endTime + 1);
+        vm.prank(alice);
+        vm.expectRevert(ForgeFairLaunchPool.SaleOngoing.selector);
+        pool.refund();
+    }
+
+    function test_Refund_DuringLiveSale_Reverts() public {
+        FairLaunchCreateParams memory params = _defaultParams(FairLaunchCurrency.ZIL);
+        uint256 required = _tokensRequired(params);
+        saleToken.transfer(creator, required);
+
+        vm.startPrank(creator);
+        saleToken.approve(address(factory), required);
+        address poolAddr = factory.createLaunch(params);
+        vm.stopPrank();
+        ForgeFairLaunchPool pool = ForgeFairLaunchPool(payable(poolAddr));
+
+        vm.warp(params.startTime + 1);
+        vm.deal(alice, 1 ether);
+        vm.prank(alice);
+        pool.contribute{value: 1 ether}(0, new bytes32[](0));
+
+        vm.prank(alice);
+        vm.expectRevert(ForgeFairLaunchPool.SaleOngoing.selector);
+        pool.refund();
+    }
+
+    function test_SetTreasury_Zero_Reverts() public {
+        vm.expectRevert(ForgeFairLaunchFactory.InvalidParam.selector);
+        factory.setTreasury(address(0));
+    }
+
+    function test_CreationFee_Zero_RefundsOverpayment() public {
+        FairLaunchCreateParams memory params = _defaultParams(FairLaunchCurrency.ZIL);
+        uint256 required = _tokensRequired(params);
+        saleToken.transfer(creator, required);
+        vm.deal(creator, 1 ether);
+        uint256 before = creator.balance;
+
+        vm.startPrank(creator);
+        saleToken.approve(address(factory), required);
+        factory.createLaunch{value: 1 ether}(params);
+        vm.stopPrank();
+
+        assertEq(creator.balance, before);
+        assertEq(address(factory).balance, 0);
+    }
+
+    function test_Withdraw_Sweeps_Stuck_Native() public {
+        vm.deal(address(factory), 0.25 ether);
+        uint256 beforeBal = address(this).balance;
+        factory.withdraw();
+        assertEq(address(factory).balance, 0);
+        assertEq(address(this).balance, beforeBal + 0.25 ether);
     }
 
     function test_CreationFee_Enforced() public {

@@ -69,23 +69,25 @@ contract ForgeTokenFactoryTest is Test {
     }
 
     function test_Withdraw_Sweeps_Balance_To_Owner() public {
-        // Set treasury to zero so fee remains in the contract
-        factory.setTreasury(address(0));
-        factory.setFee(0.25 ether);
-
-        // Send exact fee; since treasury is zero, it stays inside factory
-        vm.deal(creator, 1 ether);
-        vm.prank(creator);
-        factory.createToken{value: 0.25 ether}("Forge", "FRG", 18, 100);
-
-        // Balance should remain in factory
-        assertEq(address(factory).balance, 0.25 ether);
-
-        // Owner is this test contract; withdraw should send funds here
+        vm.deal(address(factory), 0.25 ether);
         uint256 beforeBal = address(this).balance;
         factory.withdraw();
         assertEq(address(factory).balance, 0);
         assertEq(address(this).balance, beforeBal + 0.25 ether);
+    }
+
+    function test_SetTreasury_Zero_Reverts() public {
+        vm.expectRevert(ForgeTokenFactory.InvalidParam.selector);
+        factory.setTreasury(address(0));
+    }
+
+    function test_Fee_Zero_RefundsOverpayment() public {
+        vm.deal(creator, 1 ether);
+        uint256 before = creator.balance;
+        vm.prank(creator);
+        factory.createToken{value: 1 ether}("Forge", "FRG", 18, 100);
+        assertEq(creator.balance, before);
+        assertEq(address(factory).balance, 0);
     }
 
     function test_InputValidation() public {

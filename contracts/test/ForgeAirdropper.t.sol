@@ -147,30 +147,34 @@ contract ForgeAirdropperTest is Test {
         assertEq(sender.balance, senderBalBefore - 1 ether);
     }
 
-    function test_Airdrop_Withdraw_Sweeps_When_Treasury_Zero() public {
-        // set fee > 0 and treasury to zero so fees accumulate in contract
-        airdropper.setFee(0.25 ether);
-        airdropper.setTreasury(address(0));
-
-        ForgeStandardERC20 token = _deployTokenToSender(18, 100 ether);
-        address[] memory recipients = new address[](1);
-        recipients[0] = r1;
-        uint256[] memory amounts = new uint256[](1);
-        amounts[0] = 1 ether;
-
-        vm.deal(sender, 1 ether);
-        vm.startPrank(sender);
-        token.approve(address(airdropper), 1 ether);
-        airdropper.airdrop{value: 0.25 ether}(address(token), recipients, amounts);
-        vm.stopPrank();
-
-        // contract holds fee
-        assertEq(address(airdropper).balance, 0.25 ether);
-
-        // owner is this test contract; withdraw should sweep
+    function test_Airdrop_Withdraw_Sweeps_Stuck_Native() public {
+        vm.deal(address(airdropper), 0.25 ether);
         uint256 beforeBal = address(this).balance;
         airdropper.withdraw();
         assertEq(address(airdropper).balance, 0);
         assertEq(address(this).balance, beforeBal + 0.25 ether);
+    }
+
+    function test_SetTreasury_Zero_Reverts() public {
+        vm.expectRevert(ForgeAirdropper.InvalidParam.selector);
+        airdropper.setTreasury(address(0));
+    }
+
+    function test_Fee_Zero_RefundsOverpayment() public {
+        ForgeStandardERC20 token = _deployTokenToSender(18, 100 ether);
+        address[] memory recipients = new address[](1);
+        recipients[0] = r1;
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 10 ether;
+
+        vm.deal(sender, 1 ether);
+        uint256 before = sender.balance;
+        vm.startPrank(sender);
+        token.approve(address(airdropper), 10 ether);
+        airdropper.airdrop{value: 1 ether}(address(token), recipients, amounts);
+        vm.stopPrank();
+
+        assertEq(sender.balance, before);
+        assertEq(address(airdropper).balance, 0);
     }
 }

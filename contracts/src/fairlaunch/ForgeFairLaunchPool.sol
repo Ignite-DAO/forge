@@ -8,7 +8,13 @@ import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 import {MerkleProof} from "openzeppelin-contracts/contracts/utils/cryptography/MerkleProof.sol";
 
 import {FairLaunchCurrency, FairLaunchRouterKind, FairLaunchInitParams} from "./FairLaunchTypes.sol";
-import {IPlunderRouterV2, IPlunderFactoryV2, IWETH9, INonfungiblePositionManager} from "./PlunderInterfaces.sol";
+import {
+    IPlunderRouterV2,
+    IPlunderFactoryV2,
+    IWETH9,
+    INonfungiblePositionManager,
+    IUniswapV3PoolMinimal
+} from "./PlunderInterfaces.sol";
 
 /// @notice Per-sale fair launch contract deployed via ForgeFairLaunchFactory.
 contract ForgeFairLaunchPool is ReentrancyGuard {
@@ -16,6 +22,8 @@ contract ForgeFairLaunchPool is ReentrancyGuard {
     using Address for address payable;
 
     uint256 private constant PERCENT_BASE = 100;
+    uint256 private constant BPS_BASE = 10_000;
+    uint256 private constant LISTING_PRICE_TOLERANCE_BPS = 1000;
     int24 private constant MAX_TICK = 887272;
     int24 private constant MIN_TICK = -887272;
 
@@ -39,6 +47,7 @@ contract ForgeFairLaunchPool is ReentrancyGuard {
     error InvalidCurrency();
     error SaleCancelled();
     error NotFinalized();
+    error UnexpectedPoolPrice();
 
     event Contribution(address indexed account, uint256 amount, uint256 newTotalRaised);
     event Refunded(address indexed account, uint256 amount);
@@ -222,7 +231,7 @@ contract ForgeFairLaunchPool is ReentrancyGuard {
 
     function refund() external nonReentrant {
         if (finalized) revert AlreadyFinalized();
-        if (!(cancelled || block.timestamp > endTime || totalRaised < softCap)) revert SaleOngoing();
+        if (!cancelled && !(block.timestamp > endTime && totalRaised < softCap)) revert SaleOngoing();
 
         uint256 contribution = contributions[msg.sender];
         if (contribution == 0) revert NothingToRefund();
@@ -470,12 +479,14 @@ contract ForgeFairLaunchPool is ReentrancyGuard {
             saleIsToken0 ? liquidityTokens : liquidityCurrency,
             saleIsToken0 ? liquidityCurrency : liquidityTokens
         );
-        INonfungiblePositionManager(positionManager).createAndInitializePoolIfNecessary(
+        address v3Pool = INonfungiblePositionManager(positionManager).createAndInitializePoolIfNecessary(
             saleIsToken0 ? address(token) : currencyToken,
             saleIsToken0 ? currencyToken : address(token),
             v3Fee,
             sqrtPriceX96
         );
+        (uint160 actualSqrtPrice,,,,,,) = IUniswapV3PoolMinimal(v3Pool).slot0();
+        if (!_priceWithinTolerance(actualSqrtPrice, sqrtPriceX96)) revert UnexpectedPoolPrice();
 
         // Calculate valid tick bounds for the fee tier
         (int24 tickLower, int24 tickUpper) = _getFullRangeTicks(v3Fee);
@@ -503,6 +514,13 @@ contract ForgeFairLaunchPool is ReentrancyGuard {
         } else {
             IERC20(wrappedNative).forceApprove(positionManager, 0);
         }
+    }
+
+    function _priceWithinTolerance(uint160 actual, uint160 intended) internal pure returns (bool) {
+        if (intended == 0) return false;
+        uint256 lo = (uint256(intended) * (BPS_BASE - LISTING_PRICE_TOLERANCE_BPS)) / BPS_BASE;
+        uint256 hi = (uint256(intended) * (BPS_BASE + LISTING_PRICE_TOLERANCE_BPS)) / BPS_BASE;
+        return uint256(actual) >= lo && uint256(actual) <= hi;
     }
 
     function _sqrt(uint256 x) internal pure returns (uint256 y) {

@@ -16,6 +16,7 @@ contract ForgeAirdropper is Ownable2Step, ReentrancyGuard {
 
     error LengthMismatch();
     error InsufficientFee(uint256 required, uint256 provided);
+    error InvalidParam();
 
     event Airdropped(
         address indexed token,
@@ -40,6 +41,7 @@ contract ForgeAirdropper is Ownable2Step, ReentrancyGuard {
     }
 
     function setTreasury(address newTreasury) external onlyOwner {
+        if (newTreasury == address(0)) revert InvalidParam();
         emit TreasuryUpdated(treasury, newTreasury);
         treasury = newTreasury;
     }
@@ -53,8 +55,8 @@ contract ForgeAirdropper is Ownable2Step, ReentrancyGuard {
     ) external payable nonReentrant {
         uint256 n = recipients.length;
         if (n != amounts.length) revert LengthMismatch();
+        if (msg.value < fee) revert InsufficientFee(fee, msg.value);
 
-        if (fee > 0 && msg.value < fee) revert InsufficientFee(fee, msg.value);
         IERC20 t = IERC20(token);
         uint256 total;
 
@@ -63,17 +65,7 @@ contract ForgeAirdropper is Ownable2Step, ReentrancyGuard {
             t.safeTransferFrom(msg.sender, recipients[i], amounts[i]);
         }
 
-        // Handle fee forwarding and excess refund after transfers
-        if (fee > 0) {
-            if (treasury != address(0)) {
-                payable(treasury).sendValue(fee);
-            }
-            uint256 refund = msg.value - fee;
-            if (refund > 0) {
-                payable(msg.sender).sendValue(refund);
-            }
-        }
-
+        _settleFee();
         emit Airdropped(token, msg.sender, n, total);
     }
 
@@ -84,7 +76,7 @@ contract ForgeAirdropper is Ownable2Step, ReentrancyGuard {
         address[] calldata recipients,
         uint256 amountEach
     ) external payable nonReentrant {
-        if (fee > 0 && msg.value < fee) revert InsufficientFee(fee, msg.value);
+        if (msg.value < fee) revert InsufficientFee(fee, msg.value);
         IERC20 t = IERC20(token);
         uint256 n = recipients.length;
         uint256 total = amountEach * n;
@@ -93,17 +85,18 @@ contract ForgeAirdropper is Ownable2Step, ReentrancyGuard {
             t.safeTransferFrom(msg.sender, recipients[i], amountEach);
         }
 
-        if (fee > 0) {
-            if (treasury != address(0)) {
-                payable(treasury).sendValue(fee);
-            }
-            uint256 refund = msg.value - fee;
-            if (refund > 0) {
-                payable(msg.sender).sendValue(refund);
-            }
-        }
-
+        _settleFee();
         emit Airdropped(token, msg.sender, n, total);
+    }
+
+    function _settleFee() internal {
+        if (fee > 0) {
+            payable(treasury).sendValue(fee);
+        }
+        uint256 refund = msg.value - fee;
+        if (refund > 0) {
+            payable(msg.sender).sendValue(refund);
+        }
     }
 
     /// @notice Sweep any stuck native currency to the owner.
