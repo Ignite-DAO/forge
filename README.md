@@ -6,8 +6,8 @@ Forge is a simple, secure way to create fixed‑supply ERC‑20 tokens and run a
 
 - Stack: Next.js (App Router), Tailwind v4, shadcn/ui, RainbowKit + wagmi + viem
 - Routes:
-  - `/` landing with a mixed launch browser feed (Bonding Curve + Fair Launch) and CTAs
-  - `/create-token` token factory flow (reads fee and sends it if set)
+  - `/` launch studio with an interactive token illustration, creator toolkit, and searchable mixed launch feed with type and status filters
+  - `/create-token` token factory flow with a live name, symbol, and supply preview (reads fee and sends it if set)
   - `/airdrop` airdrop tool (reads fee and sends it if set)
   - `/tokenlist` placeholder for token list
 - Commands:
@@ -123,3 +123,7 @@ Fair launch
 ## License
 
 Forge is distributed under the Business Source License 1.1 (BSL). You can use, modify, and run the code for non-commercial purposes today, including internal experimentation or research. On 2029-11-10 (four years from the current release), the code automatically reverts to the MIT License, at which point it becomes fully open source for any use case. For commercial licensing before that date, please contact the maintainers.
+
+## Interface
+
+Torchpad uses a warm cream and orange theme, playful token artwork, and a shared creator toolkit. The theme toggle retains dark mode. Layouts adapt to mobile, the mobile menu closes after navigation, and animations respect reduced-motion preferences. Launch counts and cards use onchain data; loading, network errors, empty feeds, and unmatched filters have separate states.

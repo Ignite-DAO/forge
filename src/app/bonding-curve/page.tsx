@@ -13,6 +13,7 @@ import {
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
+import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -243,12 +244,10 @@ export default function BondingCurveLaunchPage() {
   if (!factory) {
     return (
       <div className="space-y-8 pb-12">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Bonding Curve</h1>
-          <p className="mt-1 text-muted-foreground">
-            Launch tokens with automatic liquidity via bonding curves
-          </p>
-        </div>
+        <PageHeader
+          title="Ready, set, launch"
+          description="Create your token and open trading with a bonding curve on Zilliqa."
+        />
         <div className="rounded-2xl border border-destructive bg-card p-6 max-w-2xl mx-auto">
           <h2 className="text-lg font-semibold">Factory not configured</h2>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -262,14 +261,12 @@ export default function BondingCurveLaunchPage() {
 
   return (
     <div className="space-y-8 pb-12">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Bonding Curve</h1>
-        <p className="mt-1 text-muted-foreground">
-          Launch tokens with automatic liquidity via bonding curves
-        </p>
-      </div>
+      <PageHeader
+        title="Ready, set, launch"
+        description="Create your token and open trading with a bonding curve on Zilliqa."
+      />
 
-      <div className="rounded-2xl bg-card p-6 max-w-2xl mx-auto">
+      <div className="rounded-3xl border bg-card p-6 sm:p-8 max-w-2xl mx-auto">
         <h2 className="text-lg font-semibold">Launch a token</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Create a new token with an instant bonding curve. Graduates to

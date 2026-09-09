@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatUnits } from "viem";
 import { usePublicClient, useReadContract } from "wagmi";
-import { useNetwork } from "@/providers/network";
 import { erc20Abi } from "@/abi/erc20";
+import { PageHeader } from "@/components/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   abis,
@@ -18,6 +18,7 @@ import {
   getCurrencyMeta,
 } from "@/lib/fairlaunch";
 import { cn } from "@/lib/utils";
+import { useNetwork } from "@/providers/network";
 
 type FairLaunchSummary = {
   pool: `0x${string}`;
@@ -376,12 +377,10 @@ export default function DiscoverPage() {
 
   return (
     <div className="space-y-8 pb-12">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Explore Launches</h1>
-        <p className="mt-1 text-muted-foreground">
-          Discover bonding curve tokens and fair launches.
-        </p>
-      </div>
+      <PageHeader
+        title="Find your next spark"
+        description="Explore the tokens and communities launching on Zilliqa."
+      />
 
       <div className="space-y-6">
         <div className="flex gap-1 rounded-full border p-1">
@@ -609,11 +608,7 @@ function BondingCurvePoolCard({
   );
 }
 
-function FairLaunchCard({
-  launch,
-}: {
-  launch: FairLaunchSummary;
-}) {
+function FairLaunchCard({ launch }: { launch: FairLaunchSummary }) {
   const currencyMeta = getCurrencyMeta(launch.currency);
   const statusLabel = fairLaunchStatusLabels[launch.status] ?? "UPCOMING";
   const isLive = launch.status === 1;
@@ -636,8 +631,11 @@ function FairLaunchCard({
       ? `Starts ${formatCountdown(start)}`
       : "Ended";
 
-  const ctaLabel =
-    isLive ? "Invest" : launch.status === 0 ? "Notify Me" : "View";
+  const ctaLabel = isLive
+    ? "Invest"
+    : launch.status === 0
+      ? "Notify Me"
+      : "View";
 
   return (
     <Link href={`/fair-launch/${launch.pool}`} className="block">
@@ -728,9 +726,7 @@ function FairLaunchCard({
         <div
           className={cn(
             "flex items-center justify-center rounded-full py-2.5 text-sm font-medium",
-            isLive
-              ? "bg-foreground text-background"
-              : "border text-foreground",
+            isLive ? "bg-foreground text-background" : "border text-foreground",
           )}
         >
           {ctaLabel}

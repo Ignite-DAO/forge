@@ -23,7 +23,7 @@ export function NetworkSelector() {
       value={String(chainId)}
       onValueChange={(value) => setChainId(Number(value))}
     >
-      <SelectTrigger className="h-9 w-[120px] text-sm">
+      <SelectTrigger className="h-9 w-[105px] sm:w-[120px] text-sm">
         <SelectValue>
           {(() => {
             const current = networks.find((n) => n.id === chainId);

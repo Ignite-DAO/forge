@@ -30,9 +30,10 @@ export function ConnectWalletButton() {
             })}
           >
             {!connected ? (
-              <Button size="sm" onClick={openConnectModal}>
+              <Button size="sm" variant="outline" onClick={openConnectModal}>
                 <Wallet className="size-4" />
-                Connect Wallet
+                <span className="sm:hidden">Connect</span>
+                <span className="hidden sm:inline">Connect Wallet</span>
               </Button>
             ) : chain?.unsupported ? (
               <Button

@@ -10,17 +10,17 @@ export function PageHeader({
   icon?: ReactNode;
 }) {
   return (
-    <div className="mb-2">
+    <div className="page-intro">
       <div className="flex items-center gap-3">
-        {icon ? (
-          <span className="inline-flex items-center justify-center rounded-full bg-muted p-2">
-            {icon}
-          </span>
-        ) : null}
-        <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+        {icon ? <span className="text-primary">{icon}</span> : null}
+        <h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
+          {title}
+        </h1>
       </div>
       {description ? (
-        <p className="text-sm text-muted-foreground mt-1.5">{description}</p>
+        <p className="mt-3 max-w-[55ch] text-pretty text-base/7 text-muted-foreground">
+          {description}
+        </p>
       ) : null}
     </div>
   );

@@ -13,6 +13,8 @@ import {
   useWriteContract,
 } from "wagmi";
 import { z } from "zod";
+import { ConnectWalletButton } from "@/components/connect-wallet-button";
+import { PageHeader } from "@/components/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,6 +53,11 @@ export default function CreateTokenPage() {
   });
   const { register, handleSubmit, formState } = form;
   const { errors, isValid } = formState;
+  const [previewName, previewSymbol, previewSupply] = form.watch([
+    "name",
+    "symbol",
+    "supply",
+  ]);
 
   const { data: fee } = useReadContract({
     abi: abis.forgeTokenFactory,
@@ -196,12 +203,10 @@ export default function CreateTokenPage() {
 
   return (
     <div className="space-y-8 pb-12">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Create Token</h1>
-        <p className="mt-1 text-muted-foreground">
-          Configure name, symbol, decimals and supply.
-        </p>
-      </div>
+      <PageHeader
+        title="Make it yours"
+        description="Give your idea a name and a token of its own. No code needed."
+      />
 
       {!factory && (
         <Alert variant="destructive">
@@ -213,109 +218,174 @@ export default function CreateTokenPage() {
         </Alert>
       )}
 
-      <div className="rounded-2xl bg-card p-6 max-w-2xl mx-auto">
-        <form onSubmit={onSubmit}>
-          <h2 className="text-lg font-semibold">Create token</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Set token metadata and total supply.
-          </p>
-
-          <div className="border-t pt-5 mt-5 space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="name">Name</Label>
-                <Input id="name" placeholder="My Token" {...register("name")} />
-                {errors.name && (
-                  <p className="text-xs text-destructive">
-                    {errors.name.message}
-                  </p>
-                )}
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="symbol">Symbol</Label>
-                <Input
-                  id="symbol"
-                  maxLength={11}
-                  placeholder="MTK"
-                  {...register("symbol")}
-                />
-                {errors.symbol && (
-                  <p className="text-xs text-destructive">
-                    {errors.symbol.message}
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="decimals">Decimals (0-18)</Label>
-                <Input
-                  id="decimals"
-                  type="number"
-                  min={0}
-                  max={18}
-                  {...register("decimals", { valueAsNumber: true })}
-                />
-                {errors.decimals && (
-                  <p className="text-xs text-destructive">
-                    {errors.decimals.message}
-                  </p>
-                )}
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="supply">Total Supply (whole tokens)</Label>
-                <Input
-                  id="supply"
-                  placeholder="1000000"
-                  {...register("supply")}
-                />
-                {errors.supply && (
-                  <p className="text-xs text-destructive">
-                    {errors.supply.message}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="border-t pt-5 mt-5 space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Creation fee:{" "}
-              {fee
-                ? `${nf().format(Number(tryFormatUnits(fee, 18)))} ZIL`
-                : "---"}
+      <div className="grid items-start gap-6 xl:grid-cols-[3fr_2fr]">
+        <div className="rounded-3xl border bg-card p-6 sm:p-8">
+          <form onSubmit={onSubmit}>
+            <p className="mb-3 font-mono text-xs uppercase tracking-wide text-muted-foreground">
+              01 / Give it an identity
+            </p>
+            <h2 className="text-xl font-semibold">Meet your new token</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Choose what people will call it and how many will exist.
             </p>
 
-            <Button
-              type="submit"
-              disabled={!canSubmit || isPending}
-              aria-busy={isPending}
-              className="w-full rounded-full text-base font-semibold"
-              size="lg"
-            >
-              {isPending && <Loader2 className="animate-spin" />}
-              {isPending ? "Confirm in wallet..." : "Create Token"}
-            </Button>
+            <div className="border-t pt-5 mt-5 space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="name">Name</Label>
+                  <Input
+                    id="name"
+                    placeholder="e.g. Sunshine Club"
+                    {...register("name")}
+                  />
+                  {errors.name && (
+                    <p className="text-xs text-destructive">
+                      {errors.name.message}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="symbol">Symbol</Label>
+                  <Input
+                    id="symbol"
+                    maxLength={11}
+                    placeholder="e.g. SUN"
+                    {...register("symbol")}
+                  />
+                  {errors.symbol && (
+                    <p className="text-xs text-destructive">
+                      {errors.symbol.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="decimals">Decimals (0-18)</Label>
+                  <Input
+                    id="decimals"
+                    type="number"
+                    min={0}
+                    max={18}
+                    {...register("decimals", { valueAsNumber: true })}
+                  />
+                  {errors.decimals && (
+                    <p className="text-xs text-destructive">
+                      {errors.decimals.message}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="supply">Total Supply (whole tokens)</Label>
+                  <Input
+                    id="supply"
+                    placeholder="1000000"
+                    {...register("supply")}
+                  />
+                  {errors.supply && (
+                    <p className="text-xs text-destructive">
+                      {errors.supply.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
 
-            {hash && (
-              <Button asChild variant="outline" className="w-full rounded-full">
-                <a href={txUrl(chainId, hash)} target="_blank" rel="noreferrer">
-                  View Tx
-                </a>
-              </Button>
-            )}
-
-            {isConfirming && (
-              <p className="text-xs text-muted-foreground">
-                Waiting for confirmations...
+            <div className="border-t pt-5 mt-5 space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Creation fee:{" "}
+                {fee
+                  ? `${nf().format(Number(tryFormatUnits(fee, 18)))} ZIL`
+                  : "---"}
               </p>
-            )}
+
+              <Button
+                type="submit"
+                disabled={!canSubmit || isPending}
+                aria-busy={isPending}
+                className="w-full rounded-full text-base font-semibold"
+                size="lg"
+              >
+                {isPending && <Loader2 className="animate-spin" />}
+                {isPending ? "Confirm in wallet..." : "Create Token"}
+              </Button>
+
+              {!isConnected && (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-muted p-4">
+                  <p className="text-base text-muted-foreground sm:text-sm">
+                    Connect your wallet when you&apos;re ready.
+                  </p>
+                  <ConnectWalletButton />
+                </div>
+              )}
+
+              {hash && (
+                <Button
+                  asChild
+                  variant="outline"
+                  className="w-full rounded-full"
+                >
+                  <a
+                    href={txUrl(chainId, hash)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    View Tx
+                  </a>
+                </Button>
+              )}
+
+              {isConfirming && (
+                <p className="text-xs text-muted-foreground">
+                  Waiting for confirmations...
+                </p>
+              )}
+            </div>
+          </form>
+        </div>
+        <aside
+          className="space-y-5 xl:sticky xl:top-24"
+          aria-label="Your token preview"
+        >
+          <div className="token-preview overflow-hidden rounded-3xl p-7">
+            <p className="font-mono text-xs uppercase tracking-wide text-muted-foreground">
+              A first look
+            </p>
+            <div className="my-8 flex justify-center" aria-hidden="true">
+              <div className="flex size-28 rotate-[-8deg] items-center justify-center rounded-[38%] bg-primary text-3xl font-semibold text-primary-foreground">
+                {previewSymbol.trim().slice(0, 3).toUpperCase() || "YOU"}
+              </div>
+            </div>
+            <div className="rounded-2xl bg-card p-5">
+              <h2 className="break-words text-2xl font-semibold tracking-tight">
+                {previewName.trim() || "Your next big idea"}
+              </h2>
+              <p className="mt-1 break-all text-base text-muted-foreground">
+                {previewSymbol.trim().toUpperCase() || "TOKEN"}
+              </p>
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t pt-4 text-sm">
+                <span className="text-muted-foreground">Total supply</span>
+                <span className="max-w-full break-all font-medium tabular-nums">
+                  {previewSupply || "0"}
+                </span>
+              </div>
+            </div>
+            <p className="mt-4 text-center text-sm text-muted-foreground">
+              A preview of what you&apos;re creating.
+            </p>
           </div>
-        </form>
+          <div className="px-2">
+            <h3 className="text-base font-semibold">Yours from the start</h3>
+            <p className="mt-2 text-pretty text-base/7 text-muted-foreground sm:text-sm/6">
+              The full supply goes to your wallet. Creating a token is a
+              separate step from launching it for trading.
+            </p>
+          </div>
+        </aside>
       </div>
 
       {created && (
-        <div className="rounded-2xl bg-card p-6 max-w-2xl mx-auto">
+        <div className="rounded-3xl border bg-card p-6 sm:p-8 max-w-2xl mx-auto">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="size-5 text-green-600 dark:text-green-400" />
             <h2 className="text-lg font-semibold">Token created</h2>

@@ -8,14 +8,14 @@ import { SidebarInset } from "@/components/ui/sidebar";
 export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <SidebarLayout>
-      <SidebarInset className="overflow-x-hidden">
+      <SidebarInset className="isolate min-w-0 overflow-x-hidden">
         <Topbar />
-        <main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6">
+        <div className="min-w-0 flex-1 px-4 py-6 sm:px-7 lg:px-9 lg:py-8">
           <div className="mx-auto w-full max-w-6xl">{children}</div>
-        </main>
+        </div>
         <footer className="border-t border-border py-4 px-4 sm:px-6">
-          <div className="mx-auto w-full max-w-6xl flex items-center justify-center gap-4 text-xs text-muted-foreground">
-            <span>© 2026 Torchpad</span>
+          <div className="mx-auto w-full max-w-6xl flex items-center flex-wrap justify-between gap-4 text-xs text-muted-foreground">
+            <span>© 2026 Torchpad · A little spark goes a long way.</span>
             <Link
               href="/terms"
               className="hover:text-foreground transition-colors"

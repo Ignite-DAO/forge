@@ -2,10 +2,10 @@
 
 import {
   Compass,
+  Flame,
   Gift,
   Headset,
   HelpCircle,
-  Home,
   Rocket,
   Sparkles,
 } from "lucide-react";
@@ -30,14 +30,14 @@ import {
 } from "@/components/ui/sidebar";
 
 const generalItems = [
-  { href: "/", label: "Home", icon: Home },
-  { href: "/bonding-curve", label: "Launch", icon: Rocket },
+  { href: "/", label: "Launchpad", icon: Flame },
+  { href: "/bonding-curve", label: "Launch a token", icon: Rocket },
 ] as const;
 
 const toolItems = [
-  { href: "/create-token", label: "Create Token", icon: Sparkles },
+  { href: "/create-token", label: "Create a token", icon: Sparkles },
   { href: "/airdrop", label: "Airdrop", icon: Gift },
-  { href: "/fair-launch", label: "Fair Launch", icon: Compass },
+  { href: "/fair-launch", label: "Fair launch", icon: Compass },
 ] as const;
 
 const resourceItems = [
@@ -75,7 +75,7 @@ function TorchWalletBanner() {
   }
 
   return (
-    <div className="rounded-xl border p-3.5">
+    <div className="rounded-2xl border border-sidebar-foreground/10 bg-sidebar-accent/40 p-4">
       <div className="flex items-center gap-3.5">
         <Image
           src="https://torchwallet.io/images/logo.png"
@@ -87,7 +87,7 @@ function TorchWalletBanner() {
         <div className="flex flex-col">
           <span className="text-[15px] font-semibold">Torch Wallet</span>
           <span className="text-xs text-muted-foreground">
-            Bonded tokens are tradable instantly.
+            Your tokens. Right in your pocket.
           </span>
         </div>
       </div>
@@ -97,7 +97,7 @@ function TorchWalletBanner() {
         rel="noopener noreferrer"
         className="mt-3 flex items-center justify-center rounded-full bg-foreground py-2 text-sm font-medium text-background transition-colors hover:bg-foreground/90"
       >
-        Start now
+        Get Torch Wallet
       </a>
     </div>
   );
@@ -108,7 +108,11 @@ function SidebarLogo() {
   const isCollapsed = state === "collapsed";
 
   return (
-    <Link href="/" className="flex items-center gap-2.5 select-none">
+    <Link
+      href="/"
+      aria-label="Torchpad homepage"
+      className="flex items-center gap-2.5 select-none"
+    >
       <Image
         src="/logo.png"
         alt="Torchpad"
@@ -118,7 +122,7 @@ function SidebarLogo() {
         priority
       />
       {!isCollapsed && (
-        <span className="text-lg font-bold tracking-tight">Torchpad</span>
+        <span className="text-xl font-semibold tracking-tight">Torchpad</span>
       )}
     </Link>
   );
@@ -126,6 +130,7 @@ function SidebarLogo() {
 
 function SidebarButtons() {
   const pathname = usePathname();
+  const { setOpenMobile } = useSidebar();
 
   const renderItems = (
     items: typeof generalItems | typeof toolItems | typeof resourceItems,
@@ -138,7 +143,7 @@ function SidebarButtons() {
           <SidebarMenuButton
             asChild
             isActive={pathname === item.href}
-            className="h-10 gap-2.5 rounded-xl px-3 text-[15px] font-medium transition-colors group-data-[collapsible=icon]:size-9! group-data-[collapsible=icon]:p-2.5!"
+            className="h-11 gap-3 rounded-xl px-3 text-[15px] font-medium transition-colors group-data-[collapsible=icon]:size-9! group-data-[collapsible=icon]:p-2.5!"
           >
             {isExternal ? (
               <a href={item.href} target="_blank" rel="noopener noreferrer">
@@ -146,7 +151,11 @@ function SidebarButtons() {
                 <span>{item.label}</span>
               </a>
             ) : (
-              <Link href={item.href}>
+              <Link
+                href={item.href}
+                aria-current={pathname === item.href ? "page" : undefined}
+                onClick={() => setOpenMobile(false)}
+              >
                 <Icon className="size-[1.05rem] shrink-0" />
                 <span>{item.label}</span>
               </Link>
@@ -167,7 +176,7 @@ function SidebarButtons() {
       </SidebarGroup>
       <SidebarGroup className="p-2.5 pt-2">
         <SidebarGroupLabel className="px-3 text-[11px] font-semibold tracking-[0.08em] text-sidebar-foreground/60">
-          Tools
+          Make something
         </SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu className="gap-1.5">
@@ -192,8 +201,8 @@ function SidebarButtons() {
 export function SidebarLayout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider className="w-full overflow-x-hidden">
-      <UiSidebar variant="inset" collapsible="icon">
-        <SidebarHeader className="p-2.5 pb-1">
+      <UiSidebar variant="sidebar" collapsible="icon">
+        <SidebarHeader className="px-5 pb-5 pt-5">
           <div className="flex h-12 items-center rounded-xl pr-3">
             <SidebarLogo />
           </div>

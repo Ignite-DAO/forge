@@ -13,9 +13,9 @@ import {
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
-import { useNetwork } from "@/providers/network";
 import { z } from "zod";
 import { erc20Abi } from "@/abi/erc20";
+import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,6 +46,7 @@ import {
   totalTokensRequired,
 } from "@/lib/fairlaunch";
 import { cn } from "@/lib/utils";
+import { useNetwork } from "@/providers/network";
 
 const decimalPattern = /^\d+(?:[.,]\d+)?$/;
 const ZERO_BYTES32 =
@@ -924,13 +925,10 @@ export default function FairLaunchPage() {
 
   return (
     <div className="space-y-8 pb-12">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Fair launch</h1>
-        <p className="mt-1 text-muted-foreground">
-          Configure a community-first raise, accept ZIL or USDC, and auto-list
-          on PlunderSwap.
-        </p>
-      </div>
+      <PageHeader
+        title="Bring your people"
+        description="Build a community raise with ZIL or USDC and automatic listing on PlunderSwap."
+      />
 
       {!factory && (
         <div className="rounded-2xl border border-destructive bg-card p-6 max-w-2xl mx-auto">
@@ -941,7 +939,7 @@ export default function FairLaunchPage() {
         </div>
       )}
 
-      <div className="rounded-2xl bg-card p-6 max-w-2xl mx-auto">
+      <div className="rounded-3xl border bg-card p-6 sm:p-8 max-w-2xl mx-auto">
         <h2 className="text-lg font-semibold">Fair launch builder</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Follow the steps to verify your token, configure the sale, and deploy
@@ -1008,7 +1006,7 @@ export default function FairLaunchPage() {
       </div>
 
       {createdLaunch && (
-        <div className="rounded-2xl bg-card p-6 max-w-2xl mx-auto">
+        <div className="rounded-3xl border bg-card p-6 sm:p-8 max-w-2xl mx-auto">
           <div className="flex items-center gap-2">
             <Check className="size-5 text-green-600 dark:text-green-400" />
             <h2 className="text-lg font-semibold">Launchpad deployed</h2>

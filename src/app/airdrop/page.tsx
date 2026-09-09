@@ -13,6 +13,7 @@ import {
 } from "wagmi";
 import { z } from "zod";
 import { erc20Abi } from "@/abi/erc20";
+import { PageHeader } from "@/components/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -162,14 +163,12 @@ export default function AirdropPage() {
 
   return (
     <div className="space-y-8 pb-12">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Airdrop</h1>
-        <p className="mt-1 text-muted-foreground">
-          Paste recipients and amounts to distribute tokens.
-        </p>
-      </div>
+      <PageHeader
+        title="Spread the love"
+        description="A little thank-you, a big welcome. Send tokens to your community in one batch."
+      />
 
-      <div className="rounded-2xl bg-card p-6 max-w-3xl mx-auto">
+      <div className="rounded-3xl border bg-card p-6 sm:p-8 max-w-3xl mx-auto">
         <h2 className="text-lg font-semibold">Batch distribution</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Paste CSV or a list of address,amount per line.
