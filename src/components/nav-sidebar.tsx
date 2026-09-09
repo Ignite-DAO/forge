@@ -2,12 +2,12 @@
 
 import {
   Compass,
+  Flag,
   Flame,
   Gift,
   Headset,
   HelpCircle,
   Rocket,
-  Search,
   Sparkles,
 } from "lucide-react";
 import Image from "next/image";
@@ -33,13 +33,13 @@ import {
 const generalItems = [
   { href: "/", label: "Launchpad", icon: Flame },
   { href: "/bonding-curve", label: "Launch a token", icon: Rocket },
-  { href: "/discover", label: "Discover", icon: Search },
+  { href: "/discover", label: "Discover", icon: Compass },
 ] as const;
 
 const toolItems = [
   { href: "/create-token", label: "Create a token", icon: Sparkles },
   { href: "/airdrop", label: "Airdrop", icon: Gift },
-  { href: "/fair-launch", label: "Fair launch", icon: Compass },
+  { href: "/fair-launch", label: "Fair launch", icon: Flag },
 ] as const;
 
 const resourceItems = [
