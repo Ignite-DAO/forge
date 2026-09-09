@@ -7,6 +7,7 @@ import {
   Headset,
   HelpCircle,
   Rocket,
+  Search,
   Sparkles,
 } from "lucide-react";
 import Image from "next/image";
@@ -32,6 +33,7 @@ import {
 const generalItems = [
   { href: "/", label: "Launchpad", icon: Flame },
   { href: "/bonding-curve", label: "Launch a token", icon: Rocket },
+  { href: "/discover", label: "Discover", icon: Search },
 ] as const;
 
 const toolItems = [
